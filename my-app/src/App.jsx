@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Download, Type, Palette } from "lucide-react";
 import diwali from "../src/assets/Diwali.jpg";
+import "./index.css";
 
 const App = () => {
   const [firstName, setFirstName] = useState("");
