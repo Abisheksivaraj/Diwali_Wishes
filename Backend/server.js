@@ -9,7 +9,7 @@ const Port = 1234;
 
 app.use(
   cors({
-    origin: "http://localhost:5174", // <-- your frontend URL
+    origin: "https://atpl-bulk-mail-sender.onrender.com", // <-- your frontend URL
   })
 );
 app.use(express.json({ limit: "50mb" }));
