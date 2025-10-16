@@ -3,7 +3,7 @@ import { Download, Type, Upload, FileSpreadsheet, Send, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import diwali from "../src/assets/Diwali.jpg";
 
-const API_URL = "http://localhost:1234"; // Backend server URL
+const API_URL = "https://bulk-mail-rh3s.onrender.com"; // Backend server URL
 
 const App = () => {
   const [firstName, setFirstName] = useState("");
