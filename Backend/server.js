@@ -8,7 +8,7 @@ const app = express();
 const upload = multer();
 const Port = process.env.PORT || 1234;
 
-// FIXED: More permissive CORS for deployed app
+// CORS configuration - handles preflight automatically
 app.use(
   cors({
     origin: [
@@ -22,9 +22,6 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
-// Handle preflight requests
-app.options("*", cors());
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -52,10 +49,10 @@ const transporter = nodemailer.createTransport({
     pass: "Archery@2025",
   },
   name: "atplgroup.com",
-  logger: false, // Disable logging in production
+  logger: false,
   debug: false,
   tls: {
-    rejectUnauthorized: false, // For troubleshooting SSL issues
+    rejectUnauthorized: false,
   },
 });
 
