@@ -39,25 +39,42 @@ app.use(
   })
 );
 
-// Configure SMTP for Rediffmail with better error handling
-const transporter = nodemailer.createTransport({
-  host: "smtp.rediffmailpro.com",
-  port: 465,
-  secure: true,
+// Detect environment and configure SMTP accordingly
+const isProduction =
+  process.env.NODE_ENV === "production" || process.env.RENDER;
+const SMTP_PORT = process.env.SMTP_PORT || (isProduction ? 587 : 465);
+const SMTP_SECURE = SMTP_PORT === 465;
+
+console.log(`🔧 SMTP Configuration:`);
+console.log(
+  `   Environment: ${
+    isProduction ? "Production (Render)" : "Local Development"
+  }`
+);
+console.log(`   Port: ${SMTP_PORT}`);
+console.log(`   Secure: ${SMTP_SECURE}`);
+
+const smtpConfig = {
+  host: process.env.SMTP_HOST || "smtp.rediffmailpro.com",
+  port: parseInt(SMTP_PORT),
+  secure: SMTP_SECURE,
   auth: {
-    user: "info@atplgroup.com",
-    pass: "Archery@2025",
+    user: process.env.SMTP_USER || "info@atplgroup.com",
+    pass: process.env.SMTP_PASS || "Archery@2025",
   },
   name: "atplgroup.com",
-  logger: false,
-  debug: false,
+  logger: true,
+  debug: isProduction ? false : true, // Debug only in development
   tls: {
     rejectUnauthorized: false,
+    minVersion: "TLSv1.2",
   },
-  connectionTimeout: 30000,
+  connectionTimeout: 60000,
   greetingTimeout: 30000,
-  socketTimeout: 30000,
-});
+  socketTimeout: 60000,
+};
+
+const transporter = nodemailer.createTransport(smtpConfig);
 
 // Verify transporter configuration on startup
 transporter.verify(function (error, success) {
