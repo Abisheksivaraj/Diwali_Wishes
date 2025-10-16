@@ -2,54 +2,113 @@ const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 const nodemailer = require("nodemailer");
+const path = require("path");
 
 const app = express();
 const upload = multer();
-const Port = 1234;
+const Port = process.env.PORT || 1234;
 
+// FIXED: More permissive CORS for deployed app
 app.use(
   cors({
-    origin: "*",
-    methods: ["GET", "POST"],
-    credentials: true, // <-- your frontend URL
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "https://atpl-bulk-mail-sender.onrender.com",
+      "https://bulk-mail-rh3s.onrender.com",
+    ],
+    methods: ["GET", "POST", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-// Add this after your other middleware
+
+// Handle preflight requests
+app.options("*", cors());
+
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+// Serve static files with correct MIME types
 app.use(
   express.static("public", {
-    setHeaders: (res, path) => {
-      if (path.endsWith(".css")) {
+    setHeaders: (res, filepath) => {
+      if (filepath.endsWith(".css")) {
         res.setHeader("Content-Type", "text/css");
+      } else if (filepath.endsWith(".js")) {
+        res.setHeader("Content-Type", "application/javascript");
       }
     },
   })
 );
-app.use(express.json({ limit: "50mb" }));
 
-// Configure SMTP for Rediffmail
+// Configure SMTP for Rediffmail with better error handling
 const transporter = nodemailer.createTransport({
   host: "smtp.rediffmailpro.com",
-  port: 465, // Use 587 if 465 doesn’t work
-  secure: true, // true for SSL (465)
+  port: 465,
+  secure: true,
   auth: {
-    user: "info@atplgroup.com", // your Rediffmail email
-    pass: "Archery@2025", // your Rediffmail email password
+    user: "info@atplgroup.com",
+    pass: "Archery@2025",
   },
   name: "atplgroup.com",
-  logger: true, // enable log messages
-  debug: true,
+  logger: false, // Disable logging in production
+  debug: false,
+  tls: {
+    rejectUnauthorized: false, // For troubleshooting SSL issues
+  },
+});
+
+// Verify transporter configuration on startup
+transporter.verify(function (error, success) {
+  if (error) {
+    console.log("❌ SMTP Connection Error:", error);
+  } else {
+    console.log("✅ SMTP Server is ready to send emails");
+  }
+});
+
+// Health check endpoint
+app.get("/", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "ATPL Bulk Mail Server Running",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "Email service is running",
+    smtp: "Rediffmail Pro",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Endpoint to send email with attachment
 app.post("/api/send-email", upload.none(), async (req, res) => {
+  console.log("📧 Received send-email request");
+
   try {
     const { email, firstName, lastName, subject, message, imageBase64 } =
       req.body;
 
+    // Validation
     if (!email || !firstName || !imageBase64) {
+      console.log("⚠️ Missing required fields");
       return res.status(400).json({
         success: false,
         error: "Missing required fields (email, firstName, imageBase64)",
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid email format",
       });
     }
 
@@ -78,13 +137,17 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
   <span style="color:#FF0000">|</span> Pune
   <span style="color:#FF0000">|</span> Hosur
   <span style="color:#FF0000">|</span>
-</strong>
-
 </strong><br>
-          <strong>Mobile:+91 73055 35993,73056 35993</strong>
+          <strong>Mobile:+91 73055 35993,73056 35993</strong>
         </p>
       </div>
     `;
+
+    // Extract base64 data (handle both with and without data URI prefix)
+    let base64Data = imageBase64;
+    if (imageBase64.includes("base64,")) {
+      base64Data = imageBase64.split("base64,")[1];
+    }
 
     // Mail options
     const mailOptions = {
@@ -95,41 +158,57 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
       attachments: [
         {
           filename: `diwali-card-${firstName}.png`,
-          content: imageBase64.split("base64,")[1], // remove data prefix if present
+          content: base64Data,
           encoding: "base64",
-          cid: "diwali_card", // linked to <img src="cid:diwali_card">
+          cid: "diwali_card",
         },
       ],
     };
 
-    // Send email
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent to ${email} (Message ID: ${info.messageId})`);
+    // Send email with timeout
+    console.log(`📨 Attempting to send email to ${email}...`);
+    const info = await Promise.race([
+      transporter.sendMail(mailOptions),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Email timeout after 30s")), 30000)
+      ),
+    ]);
+
+    console.log(
+      `✅ Email sent successfully to ${email} (ID: ${info.messageId})`
+    );
 
     res.json({
       success: true,
       messageId: info.messageId,
       recipient: email,
+      name: recipientName,
     });
   } catch (error) {
-    console.error("❌ Email send error:", error);
+    console.error("❌ Email send error:", error.message);
+    console.error("Full error:", error);
+
     res.status(500).json({
       success: false,
       error: error.message || "Failed to send email",
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 });
 
-// Health check endpoint
-app.get("/api/health", (req, res) => {
-  res.json({ status: "OK", message: "Email service is running" });
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error("Server Error:", err);
+  res.status(500).json({
+    success: false,
+    error: "Internal server error",
+    message: err.message,
+  });
 });
 
 // Start server
-const PORT = Port || 3001;
-app.listen(PORT, () => {
-  console.log(`🚀 Email server running on http://localhost:${PORT}`);
-  console.log(
-    `📨 Ready to send emails via info@atplgroup.com (SMTP Rediffmail)`
-  );
+app.listen(Port, "0.0.0.0", () => {
+  console.log(`🚀 Email server running on port ${Port}`);
+  console.log(`📨 Ready to send emails via info@atplgroup.com`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
 });
