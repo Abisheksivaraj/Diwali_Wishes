@@ -12,6 +12,14 @@ app.use(
     origin: "https://atpl-bulk-mail-sender.onrender.com", // <-- your frontend URL
   })
 );
+// Add this after your other middleware
+app.use(express.static('public', {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+    }
+  }
+}));
 app.use(express.json({ limit: "50mb" }));
 
 // Configure SMTP for Rediffmail
