@@ -2,38 +2,61 @@ const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 const nodemailer = require("nodemailer");
+const path = require("path");
 
 const app = express();
 const upload = multer();
 const Port = 1234;
 
+// CORS configuration - allow your frontend domain
 app.use(
   cors({
-    origin: "https://atpl-bulk-mail-sender.onrender.com", // <-- your frontend URL
+    origin: "https://atpl-bulk-mail-sender.onrender.com",
+    methods: ["GET", "POST"],
+    credentials: true,
   })
 );
-// Add this after your other middleware
-app.use(express.static('public', {
-  setHeaders: (res, path) => {
-    if (path.endsWith('.css')) {
-      res.setHeader('Content-Type', 'text/css');
-    }
-  }
-}));
+
+// Parse JSON bodies
 app.use(express.json({ limit: "50mb" }));
+
+// Serve static files with correct MIME types
+app.use(express.static("public"));
+app.use(
+  "/src",
+  express.static("src", {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".css")) {
+        res.setHeader("Content-Type", "text/css");
+      }
+      if (filePath.endsWith(".js")) {
+        res.setHeader("Content-Type", "application/javascript");
+      }
+    },
+  })
+);
 
 // Configure SMTP for Rediffmail
 const transporter = nodemailer.createTransport({
   host: "smtp.rediffmailpro.com",
-  port: 465, // Use 587 if 465 doesn’t work
-  secure: true, // true for SSL (465)
+  port: 465,
+  secure: true,
   auth: {
-    user: "info@atplgroup.com", // your Rediffmail email
-    pass: "Archery@2025", // your Rediffmail email password
+    user: "info@atplgroup.com",
+    pass: "Archery@2025",
   },
   name: "atplgroup.com",
-  logger: true, // enable log messages
+  logger: true,
   debug: true,
+});
+
+// Verify transporter on startup
+transporter.verify(function (error, success) {
+  if (error) {
+    console.log("❌ SMTP Connection Error:", error);
+  } else {
+    console.log("✅ SMTP Server is ready to send emails");
+  }
 });
 
 // Endpoint to send email with attachment
@@ -64,8 +87,7 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
         </div>
         <p style="font-size: 14px; color: #000; margin-top: 30px; font-weight:700">
          <strong> Best Regards,</strong><br>
-          <strong style="color: #000080 ;font-size: 16px;">Archery Technocrats Pvt Limited 
-</strong><br>
+          <strong style="color: #000080 ;font-size: 16px;">Archery Technocrats Pvt Limited</strong><br>
           <strong>
   <span style="color:#FF0000">|</span>Tidel Park
   <span style="color:#FF0000">|</span> Tambaram
@@ -74,10 +96,8 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
   <span style="color:#FF0000">|</span> Pune
   <span style="color:#FF0000">|</span> Hosur
   <span style="color:#FF0000">|</span>
-</strong>
-
 </strong><br>
-          <strong>Mobile:+91 73055 35993,73056 35993</strong>
+          <strong>Mobile:+91 73055 35993,73056 35993</strong>
         </p>
       </div>
     `;
@@ -91,9 +111,9 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
       attachments: [
         {
           filename: `diwali-card-${firstName}.png`,
-          content: imageBase64.split("base64,")[1], // remove data prefix if present
+          content: imageBase64.split("base64,")[1],
           encoding: "base64",
-          cid: "diwali_card", // linked to <img src="cid:diwali_card">
+          cid: "diwali_card",
         },
       ],
     };
@@ -121,10 +141,15 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Email service is running" });
 });
 
+// Serve index.html for all other routes (SPA support)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
 // Start server
-const PORT = Port || 3001;
-app.listen(PORT, () => {
-  console.log(`🚀 Email server running on http://localhost:${PORT}`);
+const PORT = process.env.PORT || Port || 3001;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Email server running on port ${PORT}`);
   console.log(
     `📨 Ready to send emails via info@atplgroup.com (SMTP Rediffmail)`
   );
