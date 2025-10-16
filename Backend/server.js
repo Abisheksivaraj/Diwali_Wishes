@@ -54,6 +54,9 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false,
   },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
 });
 
 // Verify transporter configuration on startup
@@ -86,6 +89,7 @@ app.get("/api/health", (req, res) => {
 // Endpoint to send email with attachment
 app.post("/api/send-email", upload.none(), async (req, res) => {
   console.log("📧 Received send-email request");
+  console.log("Request body keys:", Object.keys(req.body));
 
   try {
     const { email, firstName, lastName, subject, message, imageBase64 } =
@@ -103,6 +107,7 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      console.log("⚠️ Invalid email format:", email);
       return res.status(400).json({
         success: false,
         error: "Invalid email format",
@@ -146,6 +151,15 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
       base64Data = imageBase64.split("base64,")[1];
     }
 
+    // Validate base64 data
+    if (!base64Data || base64Data.length < 100) {
+      console.log("⚠️ Invalid image data");
+      return res.status(400).json({
+        success: false,
+        error: "Invalid image data provided",
+      });
+    }
+
     // Mail options
     const mailOptions = {
       from: '"Archery Technocrats Pvt. Ltd." <info@atplgroup.com>',
@@ -175,7 +189,8 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
       `✅ Email sent successfully to ${email} (ID: ${info.messageId})`
     );
 
-    res.json({
+    // CRITICAL: Always return JSON response
+    return res.status(200).json({
       success: true,
       messageId: info.messageId,
       recipient: email,
@@ -185,7 +200,8 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
     console.error("❌ Email send error:", error.message);
     console.error("Full error:", error);
 
-    res.status(500).json({
+    // CRITICAL: Always return JSON response even on error
+    return res.status(500).json({
       success: false,
       error: error.message || "Failed to send email",
       details: process.env.NODE_ENV === "development" ? error.stack : undefined,
@@ -196,6 +212,8 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
+
+  // CRITICAL: Always return JSON
   res.status(500).json({
     success: false,
     error: "Internal server error",
