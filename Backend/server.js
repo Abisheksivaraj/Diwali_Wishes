@@ -9,7 +9,7 @@ const Port = 1234;
 
 app.use(
   cors({
-    origin: "https://atpl-bulk-mail-sender.onrender.com",
+    origin: "*",
     methods: ["GET", "POST"],
     credentials: true, // <-- your frontend URL
   })
