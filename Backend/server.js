@@ -12,35 +12,42 @@ const Port = process.env.PORT || 1234;
 // CORS configuration - handles preflight automatically
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:3000",
-      "https://diwali-wishes-9pdl.onrender.com",
-      "https://bulk-mail-rh3s.onrender.com",
-      "*"
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://diwali-wishes-9pdl.onrender.com",
+        "https://bulk-mail-rh3s.onrender.com",
+      ];
+
+      if (allowedOrigins.indexOf(origin) !== -1 || true) {
+        // Allow all for now
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+    allowedHeaders: [
+      "Content-Type",
+      "ngrok-skip-browser-warning",
+      "Authorization",
     ],
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "ngrok-skip-browser-warning"],
     credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   })
 );
 
-// Add after line 26 (after app.options("*", cors());)
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  next();
-});
+// Explicitly handle OPTIONS for all routes
 app.options("*", cors());
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+
 
 // Serve static files with correct MIME types
 app.use(
