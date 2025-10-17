@@ -17,6 +17,7 @@ app.use(
       "http://localhost:3000",
       "https://diwali-wishes-9pdl.onrender.com",
       "https://bulk-mail-rh3s.onrender.com",
+      "*"
     ],
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "ngrok-skip-browser-warning"],
