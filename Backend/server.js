@@ -3,6 +3,7 @@ const cors = require("cors");
 const multer = require("multer");
 const nodemailer = require("nodemailer");
 const path = require("path");
+require("dotenv").config();
 
 const app = express();
 const upload = multer();

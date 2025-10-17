@@ -5,8 +5,8 @@ import diwali from "../src/assets/Diwali.jpg";
 
 const API_URL =
   window.location.hostname === "localhost"
-    ? "http://localhost:1234"
-    : "https://atpl-bulk-mail-sender.onrender.com";
+    ? "https://boston-beholdable-jami.ngrok-free.dev"
+    : "https://boston-beholdable-jami.ngrok-free.dev";
 
 const App = () => {
   const [firstName, setFirstName] = useState("");
