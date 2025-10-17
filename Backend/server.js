@@ -15,7 +15,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:3000",
-      "https://diwali-wishes-9pdl.onrender.com/",
+      "https://diwali-wishes-9pdl.onrender.com",
       "https://bulk-mail-rh3s.onrender.com",
     ],
     methods: ["GET", "POST", "OPTIONS"],
