@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: diwali-card
+
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
