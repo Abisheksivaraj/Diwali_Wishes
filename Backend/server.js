@@ -13,10 +13,9 @@ const Port = process.env.PORT || 1234;
 app.use(
   cors({
     origin: [
-      "*",
       "http://localhost:5173",
       "http://localhost:3000",
-      "https://atpl-bulk-mail-sender.onrender.com",
+      "https://atpl-mail-sender.onrender.com",
       "https://bulk-mail-rh3s.onrender.com",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -41,26 +40,41 @@ app.use(
   })
 );
 
-// MongoDB Connection - FIXED: Added database name to connection string
+// ✅ CRITICAL: Ensure database name is in the connection string
+const MONGODB_URI =
+  "mongodb+srv://techfilesatpl:Bsm2XmWLzg1uz7Xu@archery-technocrats-clo.mnjvynw.mongodb.net/bulkmail?retryWrites=true&w=majority&appName=Archery-Technocrats-CloudPrinting";
+
+// ✅ Log the connection string to verify it has /bulkmail
+console.log("🔍 MongoDB Connection String Check:");
+console.log("   Has /bulkmail in URL:", MONGODB_URI.includes("/bulkmail"));
+if (!MONGODB_URI.includes("/bulkmail")) {
+  console.error("❌ ERROR: Connection string missing database name!");
+  console.error("   Add '/bulkmail' before the query parameters");
+  console.error("   Example: ...mongodb.net/bulkmail?retryWrites=true");
+}
+
+// MongoDB Connection
 mongoose
-  .connect(
-    process.env.MONGODB_URI ||
-      "mongodb+srv://techfilesatpl:Bsm2XmWLzg1uz7Xu@archery-technocrats-clo.mnjvynw.mongodb.net/bulkmail?retryWrites=true&w=majority&appName=Archery-Technocrats-CloudPrinting",
-    {
-      serverSelectionTimeoutMS: 30000, // 30 seconds for server selection
-      socketTimeoutMS: 45000, // 45 seconds for socket operations
-      connectTimeoutMS: 30000, // 30 seconds for initial connection
-    }
-  )
-  .then(() => console.log("✅ MongoDB Connected to database: bulkmail"))
-  .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+  .connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 30000,
+    socketTimeoutMS: 45000,
+    connectTimeoutMS: 30000,
+  })
+  .then(() => {
+    console.log("✅ MongoDB Connected successfully");
+    console.log(`   Database: ${mongoose.connection.name}`);
+    console.log(`   Host: ${mongoose.connection.host}`);
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB Connection Error:", err.message);
+  });
 
 // Import Routes
 const templateRoutes = require("./src/Routes/templates");
 const signatureRoutes = require("./src/Routes/signatures");
 const mailAccountRoutes = require("./src/Routes/mailAccounts");
 
-// Use Routes - FIXED: Added app.use for templates
+// Use Routes
 app.use("/templates", templateRoutes);
 app.use("/signatures", signatureRoutes);
 app.use("/mail-accounts", mailAccountRoutes);
@@ -114,19 +128,11 @@ transporter.verify(function (error, success) {
 // Function to replace template variables
 function replaceTemplateVariables(template, firstName, lastName) {
   if (!template) return "";
-
   let result = template;
-
-  // Replace ${firstName} with actual first name
   result = result.replace(/\$\{firstName\}/g, firstName || "");
-
-  // Replace ${lastName} with actual last name
   result = result.replace(/\$\{lastName\}/g, lastName || "");
-
-  // Replace ${fullName} with full name
   const fullName = lastName ? `${firstName} ${lastName}` : firstName;
   result = result.replace(/\$\{fullName\}/g, fullName || "");
-
   return result;
 }
 
@@ -139,21 +145,17 @@ function generateEmailHTML(
   signature = "",
   images = []
 ) {
-  // Replace template variables in body and signature
   const processedBody = replaceTemplateVariables(body, firstName, lastName);
   const processedSignature = replaceTemplateVariables(
     signature,
     firstName,
     lastName
   );
-
-  // Format message with line breaks
   const formattedMessage = processedBody.split("\n").join("<br>");
   const formattedSignature = processedSignature
     ? processedSignature.split("\n").join("<br>")
     : "";
 
-  // Build images HTML
   let imagesHTML = "";
   if (images && Array.isArray(images) && images.length > 0) {
     images.forEach((img, index) => {
@@ -173,29 +175,14 @@ function generateEmailHTML(
     <head>
       <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-      
-      <!--[if mso]>
-      <style type="text/css">
-        table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-        body, table, td, p, a, li { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-      </style>
-      <![endif]-->
     </head>
-    <body style="margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+    <body style="margin: 0; padding: 0;">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5; margin: 0; padding: 0;">
         <tr>
           <td align="center" style="padding: 20px 0;">
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="background-color: #ffffff; max-width: 600px; margin: 0 auto;">
               <tr>
                 <td style="padding: 30px 40px;">
-                  <!-- Greeting -->
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                    <tr>
-                     
-                    </tr>
-                  </table>
-                  
-                  <!-- Message Body -->
                   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                     <tr>
                       <td style="padding: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #000000; font-family: Arial, sans-serif;">
@@ -203,11 +190,7 @@ function generateEmailHTML(
                       </td>
                     </tr>
                   </table>
-                  
-                  <!-- Images -->
                   ${imagesHTML}
-                  
-                  <!-- Signature -->
                   ${
                     formattedSignature
                       ? `
@@ -223,20 +206,9 @@ function generateEmailHTML(
                   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 30px;">
                     <tr>
                       <td style="text-align: left;">
-                        <p style="margin: 0 0 8px 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.4; color: #000000; font-weight: 700; text-align: left;">Thanks & Regards,</p>
-                        <p style="margin: 0 0 8px 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.4; color: #000000; font-weight: 700; text-align: left;">Kumutha K</p>
-                        <p style="margin: 0 0 8px 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.4; color: #000080; font-weight: 700; text-align: left;">Archery Technocrats Pvt Limited</p>
-                        <p style="margin: 0 0 8px 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.4; color: #000000; font-weight: 700; text-align: left;">
-                          <span style="color:#FF0000;">|</span> Tidel Park
-                          <span style="color:#FF0000;">|</span> Tambaram
-                          <span style="color:#FF0000;">|</span> Madurai
-                          <span style="color:#FF0000;">|</span> Bangalore
-                          <span style="color:#FF0000;">|</span> Pune
-                          <span style="color:#FF0000;">|</span> Hosur
-                          <span style="color:#FF0000;">|</span>
-                        </p>
-                        <p style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.4; color: #000000; font-weight: 700; text-align: left;">ISO 9001:2015 Certified Company</p>
-                        <p style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.4; color: #000000; font-weight: 700; text-align: left;">Mobile: +91 95512 88656</p>
+                        <p style="margin: 0 0 8px 0; font-family: Arial, sans-serif; font-size: 14px; color: #000000; font-weight: 700;">Thanks & Regards,</p>
+                        <p style="margin: 0 0 8px 0; font-family: Arial, sans-serif; font-size: 14px; color: #000000; font-weight: 700;">Kumutha K</p>
+                        <p style="margin: 0 0 8px 0; font-family: Arial, sans-serif; font-size: 16px; color: #000080; font-weight: 700;">Archery Technocrats Pvt Limited</p>
                       </td>
                     </tr>
                   </table>
@@ -258,6 +230,7 @@ app.get("/", (req, res) => {
   res.json({
     status: "OK",
     message: "ATPL Bulk Mail Server Running",
+    database: mongoose.connection.name || "not connected",
     timestamp: new Date().toISOString(),
   });
 });
@@ -269,6 +242,7 @@ app.get("/api/health", (req, res) => {
     smtp: "Rediffmail Pro",
     mongodb:
       mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
+    database: mongoose.connection.name || "unknown",
     timestamp: new Date().toISOString(),
   });
 });
@@ -292,9 +266,7 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
       senderName,
     } = req.body;
 
-    // Validation
     if (!email || !firstName) {
-      console.log("⚠️ Missing required fields");
       return res.status(400).json({
         success: false,
         error: "Missing required fields (email, firstName)",
@@ -302,17 +274,14 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
     }
 
     if (!subject || !body) {
-      console.log("⚠️ Missing template data");
       return res.status(400).json({
         success: false,
         error: "Missing template data (subject, body)",
       });
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      console.log("⚠️ Invalid email format:", email);
       return res.status(400).json({
         success: false,
         error: "Invalid email format",
@@ -320,14 +289,10 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
     }
 
     const recipientName = lastName ? `${firstName} ${lastName}` : firstName;
-
-    // ✅ Create dynamic transporter if sender credentials are provided
-    let emailTransporter = transporter; // Default transporter
+    let emailTransporter = transporter;
 
     if (senderEmail && senderPassword) {
       console.log(`📧 Using custom sender: ${senderEmail}`);
-
-      // Create a new transporter with the sender's credentials
       emailTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || "smtp.rediffmailpro.com",
         port: parseInt(SMTP_PORT),
@@ -349,14 +314,11 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
       });
     }
 
-    // Replace template variables in subject
     const processedSubject = replaceTemplateVariables(
       subject,
       firstName,
       lastName
     );
-
-    // Generate email HTML with frontend data
     const htmlContent = generateEmailHTML(
       firstName,
       lastName,
@@ -365,13 +327,10 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
       signature,
       images
     );
-
-    // ✅ Determine "from" address based on sender credentials
     const fromAddress = senderEmail
       ? `"${senderName || "Email Sender"}" <${senderEmail}>`
       : '"Archery Technocrats Pvt. Ltd." <info@atplgroup.com>';
 
-    // Prepare mail options
     const mailOptions = {
       from: fromAddress,
       to: email,
@@ -380,61 +339,41 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
       attachments: [],
     };
 
-    // Process embedded images
     if (images && Array.isArray(images) && images.length > 0) {
-      console.log(`🖼️ Processing ${images.length} embedded image(s)...`);
       images.forEach((image, index) => {
         if (image.content) {
           let base64Data = image.content;
           if (image.content.includes("base64,")) {
             base64Data = image.content.split("base64,")[1];
           }
-
           mailOptions.attachments.push({
             filename: image.filename || `image_${index}.png`,
             content: base64Data,
             encoding: "base64",
             cid: `email_image_${index}`,
           });
-
-          console.log(`   ✓ Embedded: ${image.filename}`);
         }
       });
     }
 
-    // Process file attachments
     if (attachments && Array.isArray(attachments) && attachments.length > 0) {
-      console.log(`📎 Processing ${attachments.length} file attachment(s)...`);
-
       for (const attachment of attachments) {
         if (attachment.filename && attachment.content) {
           let base64Data = attachment.content;
           if (attachment.content.includes("base64,")) {
             base64Data = attachment.content.split("base64,")[1];
           }
-
           mailOptions.attachments.push({
             filename: attachment.filename,
             content: base64Data,
             encoding: "base64",
             contentType: attachment.contentType || "application/octet-stream",
           });
-
-          console.log(`   ✓ Attached: ${attachment.filename}`);
         }
       }
     }
 
-    // Send email with timeout
-    console.log(`📨 Attempting to send email to ${email}...`);
-    console.log(`   From: ${fromAddress}`);
-    console.log(`   Subject: ${processedSubject}`);
-    if (mailOptions.attachments.length > 0) {
-      console.log(
-        `   With ${mailOptions.attachments.length} attachment(s)/image(s)`
-      );
-    }
-
+    console.log(`📨 Sending to ${email} from ${fromAddress}`);
     const info = await Promise.race([
       emailTransporter.sendMail(mailOptions),
       new Promise((_, reject) =>
@@ -442,10 +381,7 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
       ),
     ]);
 
-    console.log(
-      `✅ Email sent successfully to ${email} (ID: ${info.messageId})`
-    );
-
+    console.log(`✅ Email sent successfully (ID: ${info.messageId})`);
     return res.status(200).json({
       success: true,
       messageId: info.messageId,
@@ -456,29 +392,22 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Email send error:", error.message);
-
-    // Determine error reason based on error code
     let errorReason = "Delivery Failed";
-    if (error.message.includes("timeout")) {
-      errorReason = "SMTP Timeout";
-    } else if (error.message.includes("550")) {
-      errorReason = "Mailbox Not Found";
-    } else if (error.message.includes("553")) {
-      errorReason = "Invalid Recipient";
-    } else if (error.message.includes("Invalid")) {
+    if (error.message.includes("timeout")) errorReason = "SMTP Timeout";
+    else if (error.message.includes("550")) errorReason = "Mailbox Not Found";
+    else if (error.message.includes("553")) errorReason = "Invalid Recipient";
+    else if (error.message.includes("Invalid"))
       errorReason = "Invalid Email Format";
-    } else if (
+    else if (
       error.message.includes("authentication") ||
       error.message.includes("credentials")
-    ) {
+    )
       errorReason = "Invalid Email Credentials";
-    }
 
     return res.status(500).json({
       success: false,
       error: error.message || "Failed to send email",
       reason: errorReason,
-      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 });
@@ -486,7 +415,6 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
-
   res.status(500).json({
     success: false,
     error: "Internal server error",
@@ -496,12 +424,12 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(Port, "0.0.0.0", () => {
-  console.log(`🚀 Email server running on port ${Port}`);
-  console.log(`📨 Ready to send emails via info@atplgroup.com`);
+  console.log(`🚀 Server running on port ${Port}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(
-    `📊 MongoDB Status: ${
+    `📊 MongoDB: ${
       mongoose.connection.readyState === 1 ? "Connected" : "Connecting..."
     }`
   );
+  console.log(`📁 Database: ${mongoose.connection.name || "pending..."}`);
 });
