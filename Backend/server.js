@@ -12,12 +12,7 @@ const Port = process.env.PORT || 1234;
 // CORS configuration
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:3000",
-      "https://atpl-bulk-mail-sender.onrender.com",
-      "https://bulk-mail-rh3s.onrender.com",
-    ],
+    origin: ["http://localhost:5173", "https://atpl-mail-sender.onrender.com"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
