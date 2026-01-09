@@ -125,23 +125,93 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE mail account
-router.delete("/:id", async (req, res) => {
+// ========== NEW: Password verification endpoint ==========
+// POST verify password before deletion
+router.post("/:id/verify-password", async (req, res) => {
   try {
-    const deletedAccount = await MailAccount.findByIdAndDelete(req.params.id);
+    const { password } = req.body;
 
-    if (!deletedAccount) {
-      return res.status(404).json({ error: "Mail account not found" });
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        error: "Password is required",
+      });
     }
 
-    console.log(`✅ Mail account deleted: ${deletedAccount.email}`);
+    const account = await MailAccount.findById(req.params.id);
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: "Account not found",
+      });
+    }
+
+    // Decrypt stored password and compare
+    const decryptedPassword = account.decryptPassword();
+
+    if (password === decryptedPassword) {
+      res.json({ success: true, verified: true });
+    } else {
+      res.json({
+        success: false,
+        verified: false,
+        error: "Incorrect password",
+      });
+    }
+  } catch (error) {
+    console.error("Error verifying password:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DELETE mail account - NOW REQUIRES PASSWORD
+router.delete("/:id", async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    // Require password for deletion
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        error: "Password is required to delete account",
+      });
+    }
+
+    const account = await MailAccount.findById(req.params.id);
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: "Mail account not found",
+      });
+    }
+
+    // Decrypt stored password and verify
+    const decryptedPassword = account.decryptPassword();
+
+    if (password !== decryptedPassword) {
+      return res.status(403).json({
+        success: false,
+        error: "Incorrect password. Account deletion cancelled.",
+      });
+    }
+
+    // Password verified, proceed with deletion
+    await MailAccount.findByIdAndDelete(req.params.id);
+
+    console.log(`✅ Mail account deleted: ${account.email}`);
+
     res.json({
       success: true,
       message: "Mail account deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting mail account:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 });
 

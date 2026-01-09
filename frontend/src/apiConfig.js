@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export const API_URL = "https://bulk-mail-zzmy.onrender.com";
+export const API_URL = "http://localhost:1234";
 
 // Check if online
 export const isOnline = () => navigator.onLine;

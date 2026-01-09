@@ -5,6 +5,8 @@ const nodemailer = require("nodemailer");
 const mongoose = require("mongoose");
 require("dotenv").config();
 
+console.log("🔄 SERVER STARTING");
+
 const app = express();
 const upload = multer();
 const Port = process.env.PORT || 1234;
@@ -15,6 +17,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:3000",
+      "http://localhost:5177",
       "https://atpl-mail-sender.onrender.com",
       "https://bulk-mail-rh3s.onrender.com",
     ],
@@ -40,41 +43,59 @@ app.use(
   })
 );
 
-// ✅ CRITICAL: Ensure database name is in the connection string
+// ===================== MongoDB Connection - FIXED =====================
 const MONGODB_URI =
-  "mongodb+srv://techfilesatpl:Bsm2XmWLzg1uz7Xu@archery-technocrats-clo.mnjvynw.mongodb.net/bulkmail?retryWrites=true&w=majority&appName=Archery-Technocrats-CloudPrinting";
+  process.env.MONGODB_URI ||
+  "mongodb+srv://Abishek:Abi2288@cluster0.ddlzsna.mongodb.net/Atpl_Mail";
 
-// ✅ Log the connection string to verify it has /bulkmail
-console.log("🔍 MongoDB Connection String Check:");
-console.log("   Has /bulkmail in URL:", MONGODB_URI.includes("/bulkmail"));
-if (!MONGODB_URI.includes("/bulkmail")) {
-  console.error("❌ ERROR: Connection string missing database name!");
-  console.error("   Add '/bulkmail' before the query parameters");
-  console.error("   Example: ...mongodb.net/bulkmail?retryWrites=true");
-}
+console.log("🔌 Connecting to MongoDB...");
 
-// MongoDB Connection
-mongoose
-  .connect(MONGODB_URI, {
-    serverSelectionTimeoutMS: 30000,
-    socketTimeoutMS: 45000,
-    connectTimeoutMS: 30000,
-  })
-  .then(() => {
-    console.log("✅ MongoDB Connected successfully");
-    console.log(`   Database: ${mongoose.connection.name}`);
-    console.log(`   Host: ${mongoose.connection.host}`);
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB Connection Error:", err.message);
+mongoose.connect(MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  useCreateIndex: true,
+  useFindAndModify: false,
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 30000,
+});
+
+const db = mongoose.connection;
+
+// Connection event handlers
+db.on("error", (err) => {
+  console.error("❌ MongoDB connection error:", err.message);
+});
+
+db.on("disconnected", () => {
+  console.error("⚠️  MongoDB DISCONNECTED!");
+});
+
+db.on("reconnected", () => {
+  console.log("✅ MongoDB reconnected");
+});
+
+db.once("open", () => {
+  console.log("✅ MongoDB Connected Successfully!");
+  console.log(`📊 Database: ${db.name}`);
+  console.log(`🌐 Host: ${db.host}`);
+  console.log(`🔌 Ready State: ${db.readyState}`);
+});
+
+// Graceful shutdown
+process.on("SIGINT", () => {
+  db.close(() => {
+    console.log("🔌 MongoDB connection closed");
+    process.exit(0);
   });
+});
+// ===================== End MongoDB Connection =====================
 
-// Import Routes
+// Import routes AFTER MongoDB setup
 const templateRoutes = require("./src/Routes/templates");
 const signatureRoutes = require("./src/Routes/signatures");
 const mailAccountRoutes = require("./src/Routes/mailAccounts");
 
-// Use Routes
 app.use("/templates", templateRoutes);
 app.use("/signatures", signatureRoutes);
 app.use("/mail-accounts", mailAccountRoutes);
@@ -125,36 +146,57 @@ transporter.verify(function (error, success) {
   }
 });
 
-// Function to replace template variables
-function replaceTemplateVariables(template, firstName, lastName) {
+// Function to replace template variables - FIXED to preserve formatting
+function replaceTemplateVariables(template, firstName, lastName, email) {
   if (!template) return "";
+
   let result = template;
+
+  // Replace ${firstName} format (old format)
   result = result.replace(/\$\{firstName\}/g, firstName || "");
   result = result.replace(/\$\{lastName\}/g, lastName || "");
+  result = result.replace(/\$\{email\}/g, email || "");
+
+  // Replace {{firstName}} format (NEW - used by frontend Rich Text Editor)
+  result = result.replace(/\{\{firstName\}\}/g, firstName || "");
+  result = result.replace(/\{\{lastName\}\}/g, lastName || "");
+  result = result.replace(/\{\{email\}\}/g, email || "");
+
+  // Replace fullName in both formats
   const fullName = lastName ? `${firstName} ${lastName}` : firstName;
   result = result.replace(/\$\{fullName\}/g, fullName || "");
+  result = result.replace(/\{\{fullName\}\}/g, fullName || "");
+
   return result;
 }
 
-// Function to generate email HTML
+// Function to generate email HTML - FIXED to preserve all formatting
 function generateEmailHTML(
   firstName,
   lastName,
+  email,
   subject,
   body,
   signature = "",
   images = []
 ) {
-  const processedBody = replaceTemplateVariables(body, firstName, lastName);
+  // Process body and signature with variable replacement
+  const processedBody = replaceTemplateVariables(
+    body,
+    firstName,
+    lastName,
+    email
+  );
   const processedSignature = replaceTemplateVariables(
     signature,
     firstName,
-    lastName
+    lastName,
+    email
   );
-  const formattedMessage = processedBody.split("\n").join("<br>");
-  const formattedSignature = processedSignature
-    ? processedSignature.split("\n").join("<br>")
-    : "";
+
+  // Keep the HTML as-is from the rich text editor
+  const formattedMessage = processedBody;
+  const formattedSignature = processedSignature || "";
 
   let imagesHTML = "";
   if (images && Array.isArray(images) && images.length > 0) {
@@ -230,7 +272,6 @@ app.get("/", (req, res) => {
   res.json({
     status: "OK",
     message: "ATPL Bulk Mail Server Running",
-    database: mongoose.connection.name || "not connected",
     timestamp: new Date().toISOString(),
   });
 });
@@ -242,7 +283,6 @@ app.get("/api/health", (req, res) => {
     smtp: "Rediffmail Pro",
     mongodb:
       mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
-    database: mongoose.connection.name || "unknown",
     timestamp: new Date().toISOString(),
   });
 });
@@ -289,10 +329,12 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
     }
 
     const recipientName = lastName ? `${firstName} ${lastName}` : firstName;
+
     let emailTransporter = transporter;
 
     if (senderEmail && senderPassword) {
       console.log(`📧 Using custom sender: ${senderEmail}`);
+
       emailTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || "smtp.rediffmailpro.com",
         port: parseInt(SMTP_PORT),
@@ -317,16 +359,20 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
     const processedSubject = replaceTemplateVariables(
       subject,
       firstName,
-      lastName
+      lastName,
+      email
     );
+
     const htmlContent = generateEmailHTML(
       firstName,
       lastName,
+      email,
       processedSubject,
       body,
       signature,
       images
     );
+
     const fromAddress = senderEmail
       ? `"${senderName || "Email Sender"}" <${senderEmail}>`
       : '"Archery Technocrats Pvt. Ltd." <info@atplgroup.com>';
@@ -346,6 +392,7 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
           if (image.content.includes("base64,")) {
             base64Data = image.content.split("base64,")[1];
           }
+
           mailOptions.attachments.push({
             filename: image.filename || `image_${index}.png`,
             content: base64Data,
@@ -363,6 +410,7 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
           if (attachment.content.includes("base64,")) {
             base64Data = attachment.content.split("base64,")[1];
           }
+
           mailOptions.attachments.push({
             filename: attachment.filename,
             content: base64Data,
@@ -374,6 +422,8 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
     }
 
     console.log(`📨 Sending to ${email} from ${fromAddress}`);
+    console.log(`📋 Subject: ${processedSubject}`);
+
     const info = await Promise.race([
       emailTransporter.sendMail(mailOptions),
       new Promise((_, reject) =>
@@ -382,6 +432,7 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
     ]);
 
     console.log(`✅ Email sent successfully (ID: ${info.messageId})`);
+
     return res.status(200).json({
       success: true,
       messageId: info.messageId,
@@ -392,17 +443,22 @@ app.post("/api/send-email", upload.none(), async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Email send error:", error.message);
+
     let errorReason = "Delivery Failed";
-    if (error.message.includes("timeout")) errorReason = "SMTP Timeout";
-    else if (error.message.includes("550")) errorReason = "Mailbox Not Found";
-    else if (error.message.includes("553")) errorReason = "Invalid Recipient";
-    else if (error.message.includes("Invalid"))
+    if (error.message.includes("timeout")) {
+      errorReason = "SMTP Timeout";
+    } else if (error.message.includes("550")) {
+      errorReason = "Mailbox Not Found";
+    } else if (error.message.includes("553")) {
+      errorReason = "Invalid Recipient";
+    } else if (error.message.includes("Invalid")) {
       errorReason = "Invalid Email Format";
-    else if (
+    } else if (
       error.message.includes("authentication") ||
       error.message.includes("credentials")
-    )
+    ) {
       errorReason = "Invalid Email Credentials";
+    }
 
     return res.status(500).json({
       success: false,
@@ -422,14 +478,17 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(Port, "0.0.0.0", () => {
-  console.log(`🚀 Server running on port ${Port}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(
-    `📊 MongoDB: ${
-      mongoose.connection.readyState === 1 ? "Connected" : "Connecting..."
-    }`
-  );
-  console.log(`📁 Database: ${mongoose.connection.name || "pending..."}`);
+// ===================== Start Server - FIXED =====================
+// Wait for MongoDB before starting HTTP server
+db.once("open", () => {
+  // Give MongoDB a moment to fully stabilize
+  setTimeout(() => {
+    app.listen(Port, "0.0.0.0", () => {
+      console.log("\n" + "=".repeat(60));
+      console.log(`🚀 Server running on http://localhost:${Port}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+      console.log(`📊 MongoDB: ${db.name} (State: ${db.readyState})`);
+      console.log("=".repeat(60) + "\n");
+    });
+  }, 2000);
 });

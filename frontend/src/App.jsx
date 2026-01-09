@@ -23,12 +23,27 @@ import {
   List,
   ChevronDown,
   Link as LinkIcon,
+  ListOrdered,
+  Table,
+  Type,
+  Palette,
+  Menu,
+  Users,
+  Settings,
+  Target,
+  LogOut,
+  Home,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
+import logo from "./assets/logo.jpg";
+
 import api from "../src/apiConfig";
 
-// Rich Text Editor Component
+// Rich Text Editor Component with Enhanced Features
+// ENHANCED Rich Text Editor Component - FIXED LINE BREAK HANDLING
+// Replace your existing RichTextEditor component with this one
+
 const RichTextEditor = ({
   value,
   onChange,
@@ -38,11 +53,163 @@ const RichTextEditor = ({
   onVariableInsert,
 }) => {
   const editorRef = useRef(null);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showBgColorPicker, setShowBgColorPicker] = useState(false);
+  const [showFontPicker, setShowFontPicker] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (editorRef.current && !isInitialized && value) {
+      editorRef.current.innerHTML = value;
+      setIsInitialized(true);
+    }
+  }, [value, isInitialized]);
+
+  // CRITICAL FIX: Force paragraph mode in contentEditable
+  useEffect(() => {
+    if (editorRef.current) {
+      // Set default paragraph separator to create <p> tags on Enter
+      try {
+        document.execCommand("defaultParagraphSeparator", false, "p");
+      } catch (e) {
+        console.log("Could not set paragraph separator");
+      }
+    }
+  }, []);
+
+  const fonts = [
+    "Arial",
+    "Times New Roman",
+    "Georgia",
+    "Courier New",
+    "Verdana",
+    "Tahoma",
+    "Trebuchet MS",
+    "Palatino Linotype",
+    "Garamond",
+    "Comic Sans MS",
+    "Impact",
+    "Lucida Console",
+    "Calibri",
+    "Cambria",
+    "Segoe UI",
+  ];
+
+  const colors = [
+    "#000000",
+    "#434343",
+    "#666666",
+    "#999999",
+    "#B7B7B7",
+    "#CCCCCC",
+    "#D9D9D9",
+    "#EFEFEF",
+    "#F3F3F3",
+    "#FFFFFF",
+    "#980000",
+    "#FF0000",
+    "#FF9900",
+    "#FFFF00",
+    "#00FF00",
+    "#00FFFF",
+    "#4A86E8",
+    "#0000FF",
+    "#9900FF",
+    "#FF00FF",
+    "#E6B8AF",
+    "#F4CCCC",
+    "#FCE5CD",
+    "#FFF2CC",
+    "#D9EAD3",
+    "#D0E0E3",
+    "#C9DAF8",
+    "#CFE2F3",
+    "#D9D2E9",
+    "#EAD1DC",
+  ];
+
+  const fontSizes = [
+    8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72,
+  ];
+
+  const lineHeights = [
+    { label: "Single", value: "1" },
+    { label: "1.15", value: "1.15" },
+    { label: "1.5", value: "1.5" },
+    { label: "Double", value: "2" },
+    { label: "2.5", value: "2.5" },
+    { label: "3.0", value: "3" },
+  ];
 
   const execCommand = (command, value = null) => {
     document.execCommand(command, false, value);
     if (editorRef.current) {
       onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  // ENHANCED: Handle input with proper formatting preservation
+  const handleInput = (e) => {
+    let html = e.currentTarget.innerHTML;
+
+    // Ensure proper spacing between elements
+    html = html.replace(/<\/div><div>/g, "</div>\n<div>");
+    html = html.replace(/<\/p><p>/g, "</p>\n<p>");
+
+    onChange(html);
+  };
+
+  // ENHANCED: Handle keyboard events to ensure proper line breaks
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      // Let the browser handle Enter normally (will create <p> or <div>)
+      // But ensure it's creating proper block elements
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        // The browser will handle this, just make sure we update the content
+        setTimeout(() => {
+          if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+          }
+        }, 0);
+      }
+    }
+  };
+
+  const applyLineHeight = (height) => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const span = document.createElement("span");
+      span.style.lineHeight = height;
+      range.surroundContents(span);
+      if (editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+      }
+    }
+  };
+
+  const insertTable = () => {
+    const rows = prompt("Number of rows:", "3");
+    const cols = prompt("Number of columns:", "3");
+
+    if (rows && cols) {
+      let tableHTML =
+        '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 10px 0;">';
+      for (let i = 0; i < parseInt(rows); i++) {
+        tableHTML += "<tr>";
+        for (let j = 0; j < parseInt(cols); j++) {
+          tableHTML +=
+            '<td style="border: 1px solid #ddd; padding: 8px;">&nbsp;</td>';
+        }
+        tableHTML += "</tr>";
+      }
+      tableHTML += "</table><p>&nbsp;</p>";
+
+      document.execCommand("insertHTML", false, tableHTML);
+      if (editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+      }
     }
   };
 
@@ -52,7 +219,7 @@ const RichTextEditor = ({
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const img = `<img src="${event.target.result}" style="max-width: 100%; height: auto;" />`;
+      const img = `<img src="${event.target.result}" style="max-width: 100%; height: auto; display: block; margin: 10px 0;" />`;
       document.execCommand("insertHTML", false, img);
       if (editorRef.current) {
         onChange(editorRef.current.innerHTML);
@@ -76,8 +243,55 @@ const RichTextEditor = ({
     }
   };
 
+  const applyFont = (fontName) => {
+    execCommand("fontName", fontName);
+    setShowFontPicker(false);
+  };
+
+  const applyColor = (color) => {
+    execCommand("foreColor", color);
+    setShowColorPicker(false);
+  };
+
+  const applyBgColor = (color) => {
+    execCommand("hiliteColor", color);
+    setShowBgColorPicker(false);
+  };
+
+  const applyFontSize = (size) => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const span = document.createElement("span");
+      span.style.fontSize = size + "px";
+      range.surroundContents(span);
+      if (editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+      }
+    }
+  };
+
   return (
-    <div className="border-2 rounded-lg" style={{ borderColor: "#E0E4E7" }}>
+    <div className="border rounded-lg" style={{ borderColor: "#E0E4E7" }}>
+      <style>
+        {`
+          [contenteditable][data-placeholder]:empty:before {
+            content: attr(data-placeholder);
+            color: #8A9BA5;
+            cursor: text;
+          }
+          [contenteditable]:focus {
+            outline: none;
+          }
+          /* Ensure proper spacing for block elements in editor */
+          [contenteditable] p {
+            margin: 0 0 1em 0;
+          }
+          [contenteditable] div {
+            min-height: 1em;
+          }
+        `}
+      </style>
       <div
         className="flex items-center gap-1 p-2 border-b flex-wrap"
         style={{ backgroundColor: "#F5F7F9", borderColor: "#E0E4E7" }}
@@ -120,6 +334,137 @@ const RichTextEditor = ({
           </div>
         )}
 
+        {/* Font Family Picker */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowFontPicker(!showFontPicker)}
+            className="px-3 py-2 rounded hover:bg-gray-200 flex items-center gap-1 text-sm border"
+            style={{ borderColor: "#E0E4E7" }}
+            title="Font Family"
+          >
+            <Type size={16} />
+            <ChevronDown size={12} />
+          </button>
+          {showFontPicker && (
+            <div
+              className="absolute top-full left-0 mt-1 bg-white border-2 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
+              style={{ borderColor: "#E0E4E7", minWidth: "180px" }}
+            >
+              {fonts.map((font) => (
+                <button
+                  key={font}
+                  type="button"
+                  onClick={() => applyFont(font)}
+                  className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm"
+                  style={{ fontFamily: font }}
+                >
+                  {font}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Font Size */}
+        <select
+          onChange={(e) => applyFontSize(e.target.value)}
+          className="px-2 py-2 text-sm rounded border"
+          style={{ borderColor: "#E0E4E7" }}
+          title="Font Size"
+          defaultValue=""
+        >
+          <option value="" disabled>
+            Size
+          </option>
+          {fontSizes.map((size) => (
+            <option key={size} value={size}>
+              {size}px
+            </option>
+          ))}
+        </select>
+
+        <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+        {/* Text Color */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className="p-2 rounded hover:bg-gray-200 flex items-center gap-1"
+            title="Text Color"
+          >
+            <Palette size={16} />
+            <ChevronDown size={12} />
+          </button>
+          {showColorPicker && (
+            <div
+              className="absolute top-full left-0 mt-1 bg-white border-2 rounded-lg shadow-lg z-50 p-2"
+              style={{ borderColor: "#E0E4E7", width: "240px" }}
+            >
+              <div className="grid grid-cols-10 gap-1">
+                {colors.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => applyColor(color)}
+                    className="w-6 h-6 rounded border hover:scale-110 transition-transform"
+                    style={{ backgroundColor: color, borderColor: "#ccc" }}
+                    title={color}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Background Color */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowBgColorPicker(!showBgColorPicker)}
+            className="p-2 rounded hover:bg-gray-200 flex items-center gap-1"
+            title="Background Color"
+          >
+            <div
+              className="w-4 h-4 rounded"
+              style={{
+                background: "linear-gradient(135deg, #FFD700 50%, #FF69B4 50%)",
+                border: "1px solid #ccc",
+              }}
+            ></div>
+            <ChevronDown size={12} />
+          </button>
+          {showBgColorPicker && (
+            <div
+              className="absolute top-full left-0 mt-1 bg-white border-2 rounded-lg shadow-lg z-50 p-2"
+              style={{ borderColor: "#E0E4E7", width: "240px" }}
+            >
+              <div
+                className="text-xs font-semibold mb-2"
+                style={{ color: "#38474F" }}
+              >
+                Background Color
+              </div>
+              <div className="grid grid-cols-10 gap-1">
+                {colors.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => applyBgColor(color)}
+                    className="w-6 h-6 rounded border hover:scale-110 transition-transform"
+                    style={{ backgroundColor: color, borderColor: "#ccc" }}
+                    title={color}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+        {/* Text Formatting */}
         <button
           type="button"
           onClick={() => execCommand("bold")}
@@ -147,6 +492,7 @@ const RichTextEditor = ({
 
         <div className="w-px h-6 bg-gray-300 mx-1"></div>
 
+        {/* Text Alignment */}
         <button
           type="button"
           onClick={() => execCommand("justifyLeft")}
@@ -174,6 +520,7 @@ const RichTextEditor = ({
 
         <div className="w-px h-6 bg-gray-300 mx-1"></div>
 
+        {/* Lists */}
         <button
           type="button"
           onClick={() => execCommand("insertUnorderedList")}
@@ -182,7 +529,46 @@ const RichTextEditor = ({
         >
           <List size={16} />
         </button>
+        <button
+          type="button"
+          onClick={() => execCommand("insertOrderedList")}
+          className="p-2 rounded hover:bg-gray-200"
+          title="Numbered List"
+        >
+          <ListOrdered size={16} />
+        </button>
 
+        <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+        {/* Line Spacing */}
+        <select
+          onChange={(e) => applyLineHeight(e.target.value)}
+          className="px-2 py-2 text-sm rounded border"
+          style={{ borderColor: "#E0E4E7" }}
+          title="Line Spacing"
+          defaultValue=""
+        >
+          <option value="" disabled>
+            Spacing
+          </option>
+          {lineHeights.map((lh) => (
+            <option key={lh.value} value={lh.value}>
+              {lh.label}
+            </option>
+          ))}
+        </select>
+
+        <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+        {/* Insert Tools */}
+        <button
+          type="button"
+          onClick={insertTable}
+          className="p-2 rounded hover:bg-gray-200"
+          title="Insert Table"
+        >
+          <Table size={16} />
+        </button>
         <button
           type="button"
           onClick={insertLink}
@@ -191,8 +577,6 @@ const RichTextEditor = ({
         >
           <LinkIcon size={16} />
         </button>
-
-        <div className="w-px h-6 bg-gray-300 mx-1"></div>
 
         <label
           className="p-2 rounded hover:bg-gray-200 cursor-pointer"
@@ -206,275 +590,39 @@ const RichTextEditor = ({
             className="hidden"
           />
         </label>
-
-        <select
-          onChange={(e) => execCommand("fontSize", e.target.value)}
-          className="px-2 py-1 text-sm rounded border"
-          style={{ borderColor: "#E0E4E7" }}
-        >
-          <option value="3">Normal</option>
-          <option value="1">Small</option>
-          <option value="5">Large</option>
-          <option value="7">Huge</option>
-        </select>
       </div>
 
+      {/* ENHANCED: Editable area with proper event handlers */}
       <div
         ref={editorRef}
         contentEditable
-        onInput={(e) => onChange(e.currentTarget.innerHTML)}
+        suppressContentEditableWarning
+        onInput={handleInput}
+        onKeyDown={handleKeyDown}
+        onFocus={() => {
+          if (!isInitialized) setIsInitialized(true);
+        }}
         className="p-4 outline-none overflow-y-auto"
+        data-placeholder={placeholder}
         style={{
           minHeight: height,
           maxHeight: height,
           backgroundColor: "white",
+          direction: "ltr",
+          textAlign: "left",
+          unicodeBidi: "embed",
+          whiteSpace: "pre-wrap",
+          wordWrap: "break-word",
+          overflowWrap: "break-word",
         }}
-        dangerouslySetInnerHTML={{ __html: value }}
       />
     </div>
   );
 };
 
-const MailAccountsPanel = ({ isOpen, onClose, savedAccounts, onSave }) => {
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [accounts, setAccounts] = useState(savedAccounts || []);
-
-  useEffect(() => {
-    if (isOpen) {
-      loadAccounts();
-    }
-  }, [isOpen]);
-
-  const loadAccounts = async () => {
-    try {
-      const response = await api.get("/mail-accounts");
-      setAccounts(response.data.accounts || []);
-    } catch (error) {
-      console.error("Error loading accounts:", error);
-      if (error.code === "ECONNABORTED") {
-        console.warn("MongoDB connection timeout - server may be starting up");
-      }
-    }
-  };
-
-  const handleAddAccount = async () => {
-    if (!username || !email || !password) {
-      alert("Please fill in all fields");
-      return;
-    }
-
-    try {
-      const response = await api.post("/mail-accounts", {
-        username,
-        email,
-        password,
-      });
-
-      const newAccount = response.data.account;
-      const updatedAccounts = [...accounts, newAccount];
-      setAccounts(updatedAccounts);
-      onSave(updatedAccounts);
-
-      setUsername("");
-      setEmail("");
-      setPassword("");
-      alert("✅ Mail account added successfully!");
-    } catch (error) {
-      console.error("Error adding account:", error);
-
-      if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
-        alert(
-          "❌ Server timeout. Please check if the backend server is running and MongoDB is connected."
-        );
-      } else {
-        alert(
-          "❌ Error adding account: " +
-            (error.response?.data?.error || error.message)
-        );
-      }
-    }
-  };
-
-  const handleDeleteAccount = async (id) => {
-    if (!confirm("Are you sure you want to delete this account?")) return;
-
-    try {
-      const response = await api.delete(`/mail-accounts/${id}`);
-      if (response.data.success) {
-        const updatedAccounts = accounts.filter((acc) => acc._id !== id);
-        setAccounts(updatedAccounts);
-        onSave(updatedAccounts);
-        alert("✅ Account deleted!");
-      }
-    } catch (error) {
-      console.error("Error deleting account:", error);
-      alert(
-        "❌ Error deleting account: " +
-          (error.response?.data?.error || error.message)
-      );
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <Mail className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">
-                Mail Accounts
-              </h2>
-              <p className="text-sm text-gray-600">
-                Manage your email accounts
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="bg-blue-50 rounded-xl p-6 mb-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">
-            Add New Account
-          </h3>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Username
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="John Doe"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Email ID
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="john@example.com"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
-                  placeholder="Enter password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={handleAddAccount}
-            className="w-full mt-4 py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2"
-            style={{ backgroundColor: "#39A3DD" }}
-          >
-            <Save size={20} />
-            Add Account
-          </button>
-        </div>
-
-        <div>
-          <h3 className="text-lg font-bold text-gray-800 mb-4">
-            Saved Accounts ({accounts.length})
-          </h3>
-
-          {accounts.length === 0 ? (
-            <p className="text-center py-8 text-gray-500">
-              No accounts saved yet
-            </p>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      Username
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      Email ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      Password
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {accounts.map((account) => (
-                    <tr key={account._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {account.username}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {account.email}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 font-mono">
-                        {"•".repeat(8)}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <button
-                          onClick={() => handleDeleteAccount(account._id)}
-                          className="p-2 rounded bg-red-100 text-red-600 hover:bg-red-200"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const App = () => {
-  const [currentPage, setCurrentPage] = useState("sender");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [currentPage, setCurrentPage] = useState("bulk-sender");
 
   const [templates, setTemplates] = useState([]);
   const [signatures, setSignatures] = useState([]);
@@ -495,39 +643,24 @@ const App = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [cancelRequested, setCancelRequested] = useState(false);
   const [attachments, setAttachments] = useState([]);
-
+  const [sendingStatus, setSendingStatus] = useState([]);
   const [successCount, setSuccessCount] = useState(0);
   const [failCount, setFailCount] = useState(0);
   const [failedEmails, setFailedEmails] = useState([]);
   const [showFailedTable, setShowFailedTable] = useState(false);
   const [emailImages, setEmailImages] = useState([]);
-  const [showMailAccounts, setShowMailAccounts] = useState(false);
   const [mailAccounts, setMailAccounts] = useState([]);
   const [selectedContact, setSelectedContact] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [deleteAccountId, setDeleteAccountId] = useState(null);
+  const [deletePassword, setDeletePassword] = useState("");
 
-  const handleSelectContact = async (contact) => {
-    setSelectedContact(contact);
-    setFirstName(contact.username);
-    setEmail(contact.email);
-    setLastName("");
-    setOpenDropdown(false);
-
-    // ✅ Fetch the full account details including password
-    try {
-      const response = await api.get(`/mail-accounts/${contact._id}`);
-      if (response.data.account) {
-        // Store the complete credentials for sending emails
-        setSelectedContact({
-          ...contact,
-          password: response.data.account.password,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching account details:", error);
-      alert("⚠️ Could not load account credentials");
-    }
-  };
+  // Mail Accounts Panel States
+  const [username, setUsername] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountPassword, setAccountPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const fileInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
@@ -539,7 +672,6 @@ const App = () => {
     loadMailAccounts();
   }, []);
 
-  // ========== TEMPLATE FUNCTIONS ==========
   const loadTemplates = async () => {
     try {
       const response = await api.get("/templates");
@@ -624,7 +756,6 @@ const App = () => {
     setTemplateBody(template.body);
   };
 
-  // ========== SIGNATURE FUNCTIONS ==========
   const loadSignatures = async () => {
     try {
       const response = await api.get("/signatures");
@@ -699,7 +830,6 @@ const App = () => {
     setSignatureContent(signature.content);
   };
 
-  // ========== MAIL ACCOUNTS FUNCTIONS ==========
   const loadMailAccounts = async () => {
     try {
       const response = await api.get("/mail-accounts");
@@ -709,7 +839,95 @@ const App = () => {
     }
   };
 
-  // ========== IMAGE FUNCTIONS ==========
+  const handleAddAccount = async () => {
+    if (!username || !accountEmail || !accountPassword) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    try {
+      const response = await api.post("/mail-accounts", {
+        username,
+        email: accountEmail,
+        password: accountPassword,
+      });
+
+      const newAccount = response.data.account;
+      setMailAccounts([...mailAccounts, newAccount]);
+
+      setUsername("");
+      setAccountEmail("");
+      setAccountPassword("");
+      alert("✅ Mail account added successfully!");
+    } catch (error) {
+      console.error("Error adding account:", error);
+      alert(
+        "❌ Error adding account: " +
+          (error.response?.data?.error || error.message)
+      );
+    }
+  };
+
+  const handleDeleteAccount = async (id) => {
+    setDeleteAccountId(id);
+    setShowPasswordModal(true);
+  };
+
+  // Add this new function for confirming deletion:
+  const confirmDeleteAccount = async () => {
+    if (!deletePassword) {
+      alert("Please enter the account password");
+      return;
+    }
+
+    try {
+      const response = await api.delete(`/mail-accounts/${deleteAccountId}`, {
+        data: { password: deletePassword },
+      });
+
+      if (response.data.success) {
+        setMailAccounts(
+          mailAccounts.filter((acc) => acc._id !== deleteAccountId)
+        );
+        alert("✅ Account deleted successfully!");
+        setShowPasswordModal(false);
+        setDeletePassword("");
+        setDeleteAccountId(null);
+      }
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      if (error.response?.status === 403) {
+        alert("❌ Incorrect password! Please try again.");
+      } else {
+        alert(
+          "❌ Error deleting account: " +
+            (error.response?.data?.error || error.message)
+        );
+      }
+    }
+  };
+
+  const handleSelectContact = async (contact) => {
+    setSelectedContact(contact);
+    setFirstName(contact.username);
+    setEmail(contact.email);
+    setLastName("");
+    setOpenDropdown(false);
+
+    try {
+      const response = await api.get(`/mail-accounts/${contact._id}`);
+      if (response.data.account) {
+        setSelectedContact({
+          ...contact,
+          password: response.data.account.password,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching account details:", error);
+      alert("⚠️ Could not load account credentials");
+    }
+  };
+
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     const newImages = [];
@@ -741,7 +959,6 @@ const App = () => {
     setEmailImages(updatedImages);
   };
 
-  // ========== ATTACHMENT FUNCTIONS ==========
   const handleAttachmentUpload = (e) => {
     const files = Array.from(e.target.files);
     const newAttachments = files.map((file) => ({
@@ -790,7 +1007,6 @@ const App = () => {
     return base64Images;
   };
 
-  // ========== EMAIL SENDING FUNCTIONS ==========
   const sendEmailViaAPI = async (
     recipientEmail,
     fName,
@@ -809,7 +1025,6 @@ const App = () => {
         signature: selectedSignature?.content || "",
         attachments: attachmentsData,
         images: imagesData,
-        // ✅ Send sender credentials if a contact is selected
         senderEmail: senderCredentials?.email || null,
         senderPassword: senderCredentials?.password || null,
         senderName: senderCredentials?.username || null,
@@ -943,7 +1158,7 @@ const App = () => {
           contact.lastName,
           attachmentsData,
           imagesData,
-          selectedContact // ✅ Pass sender credentials
+          selectedContact
         );
 
         tempSuccessCount++;
@@ -1021,7 +1236,7 @@ const App = () => {
         lastName,
         attachmentsData,
         imagesData,
-        selectedContact // ✅ Pass sender credentials
+        selectedContact
       );
       alert(`✅ Email sent successfully to ${email}`);
     } catch (error) {
@@ -1081,7 +1296,7 @@ const App = () => {
               <table width="600" style="background:#fff">
                 <tr>
                   <td style="padding:30px">
-                    <h2>Dear ${firstName || "Customer"},</h2>
+                    
                     <div>${bodyHTML}</div>
                     <div style="margin-top:30px">${signatureHTML}</div>
                   </td>
@@ -1095,956 +1310,1629 @@ const App = () => {
   `;
   };
 
-  if (currentPage === "templates") {
-    return (
+  return (
+    <div
+      className="flex h-screen"
+      style={{
+        backgroundColor: "#F5F7F9",
+        fontFamily: "'Open Sans', sans-serif",
+      }}
+    >
+      <style>
+        {`
+          @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;700&family=Open+Sans:wght@400;600;700&display=swap');
+          
+          * {
+            box-sizing: border-box;
+          }
+          
+          body {
+            margin: 0;
+            padding: 0;
+          }
+        `}
+      </style>
+
+      {/* ========== SIDEBAR ========== */}
       <div
-        className="w-screen min-h-screen p-8"
+        className={`transition-all duration-300 ${
+          sidebarOpen ? "w-72" : "w-20"
+        }`}
         style={{
-          background: "linear-gradient(135deg, #F5F7F9 0%, #E8EDF1 100%)",
+          backgroundColor: "#38474F",
+          boxShadow: "4px 0 16px rgba(0,0,0,0.1)",
         }}
       >
-        <MailAccountsPanel
-          isOpen={showMailAccounts}
-          onClose={() => setShowMailAccounts(false)}
-          savedAccounts={mailAccounts}
-          onSave={setMailAccounts}
-        />
-
-        <div className="mb-6 flex gap-4 justify-between">
-          <div className="flex gap-4">
-            <button
-              onClick={() => setCurrentPage("templates")}
-              className="px-6 py-3 rounded-lg font-semibold"
-              style={{ backgroundColor: "#39A3DD", color: "white" }}
-            >
-              <Layers size={18} className="inline mr-2" />
-              TEMPLATE MANAGER
-            </button>
-            <button
-              onClick={() => setCurrentPage("sender")}
-              className="px-6 py-3 rounded-lg font-semibold"
-              style={{ backgroundColor: "#8A9BA5", color: "white" }}
-            >
-              <Send size={18} className="inline mr-2" />
-              BULK SENDER
-            </button>
-          </div>
-
-          <button
-            onClick={() => setShowMailAccounts(true)}
-            className="px-6 py-3 rounded-lg font-semibold flex items-center gap-2"
-            style={{ backgroundColor: "#39A3DD", color: "white" }}
+        <div className="h-full flex flex-col">
+          {/* Logo Section */}
+          <div
+            className={`p-4 border-b transition-all ${
+              sidebarOpen ? "px-6" : "px-4"
+            }`}
+            style={{ borderColor: "rgba(255,255,255,0.1)", height: "80px" }}
           >
-            <Mail size={18} />
-            MAIL ACCOUNTS
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-8">
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2
-              className="text-3xl font-bold mb-6 flex items-center gap-3"
-              style={{ color: "#38474F" }}
-            >
-              <Mail size={28} style={{ color: "#39A3DD" }} />
-              EMAIL TEMPLATES
-            </h2>
-
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  TEMPLATE NAME
-                </label>
-                <input
-                  type="text"
-                  value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                  className="w-full border-2 px-4 py-3 rounded-lg"
-                  placeholder="e.g., Welcome Email"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  EMAIL SUBJECT
-                </label>
-                <input
-                  type="text"
-                  value={templateSubject}
-                  onChange={(e) => setTemplateSubject(e.target.value)}
-                  className="w-full border-2 px-4 py-3 rounded-lg"
-                  placeholder="Enter email subject"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  EMAIL BODY
-                </label>
-                <RichTextEditor
-                  value={templateBody}
-                  onChange={setTemplateBody}
-                  placeholder="Enter email body..."
-                  height="300px"
-                  showVariables={true}
-                />
-              </div>
-
-              <button
-                onClick={saveTemplate}
-                className="w-full py-3 flex items-center justify-center gap-2 text-white rounded-lg font-semibold"
-                style={{ backgroundColor: "#39A3DD" }}
-              >
-                <Save size={18} />
-                {editingTemplate ? "UPDATE TEMPLATE" : "SAVE TEMPLATE"}
-              </button>
-
-              {editingTemplate && (
-                <button
-                  onClick={() => {
-                    setEditingTemplate(null);
-                    setTemplateName("");
-                    setTemplateSubject("");
-                    setTemplateBody("");
-                  }}
-                  className="w-full py-3 text-center rounded-lg font-semibold"
-                  style={{ backgroundColor: "#F5F7F9", color: "#8A9BA5" }}
-                >
-                  CANCEL EDITING
-                </button>
-              )}
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-3">
-                SAVED TEMPLATES ({templates.length})
-              </h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {templates.map((template) => (
-                  <div
-                    key={template._id}
-                    className="p-4 rounded-lg border"
-                    style={{ backgroundColor: "#F5F7F9" }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-bold text-sm">{template.name}</h4>
-                        <p className="text-sm mt-1 text-gray-600">
-                          {template.subject}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => editTemplate(template)}
-                          className="p-2 rounded"
-                          style={{
-                            backgroundColor: "#D4EAF7",
-                            color: "#39A3DD",
-                          }}
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                        <button
-                          onClick={() => deleteTemplate(template._id)}
-                          className="p-2 rounded bg-red-100 text-red-600"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {templates.length === 0 && (
-                  <p className="text-center py-8 text-gray-500">
-                    No templates saved yet
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2
-              className="text-3xl font-bold mb-6 flex items-center gap-3"
-              style={{ color: "#38474F" }}
-            >
-              <Edit3 size={28} style={{ color: "#39A3DD" }} />
-              EMAIL SIGNATURES
-            </h2>
-
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  SIGNATURE NAME
-                </label>
-                <input
-                  type="text"
-                  value={signatureName}
-                  onChange={(e) => setSignatureName(e.target.value)}
-                  className="w-full border-2 px-4 py-3 rounded-lg"
-                  placeholder="e.g., Professional Signature"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  SIGNATURE CONTENT
-                </label>
-                <RichTextEditor
-                  value={signatureContent}
-                  onChange={setSignatureContent}
-                  placeholder="Enter signature content..."
-                  height="400px"
-                  showVariables={true}
-                />
-              </div>
-
-              <button
-                onClick={saveSignature}
-                className="w-full py-3 flex items-center justify-center gap-2 text-white rounded-lg font-semibold"
-                style={{ backgroundColor: "#39A3DD" }}
-              >
-                <Save size={18} />
-                {editingSignature ? "UPDATE SIGNATURE" : "SAVE SIGNATURE"}
-              </button>
-
-              {editingSignature && (
-                <button
-                  onClick={() => {
-                    setEditingSignature(null);
-                    setSignatureName("");
-                    setSignatureContent("");
-                  }}
-                  className="w-full py-3 text-center rounded-lg font-semibold"
-                  style={{ backgroundColor: "#F5F7F9", color: "#8A9BA5" }}
-                >
-                  CANCEL EDITING
-                </button>
-              )}
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-3">
-                SAVED SIGNATURES ({signatures.length})
-              </h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {signatures.map((signature) => (
-                  <div
-                    key={signature._id}
-                    className="p-4 rounded-lg border"
+            {sidebarOpen ? (
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center">
+                  <img src={logo} alt="" className="rounded-md" />
+                </div>
+                <div>
+                  <h1
+                    className="text-white font-bold text-lg"
                     style={{
-                      backgroundColor: "#F5F7F9",
-                      borderColor: "#E0E4E7",
+                      fontFamily: "'Oswald', sans-serif",
+                      letterSpacing: "0.5px",
                     }}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4
-                          className="font-bold"
-                          style={{ color: "#38474F", fontSize: "14px" }}
-                        >
-                          {signature.name}
-                        </h4>
-                        <p
-                          className="text-xs mt-2"
-                          style={{ color: "#8A9BA5" }}
-                        >
-                          {new Date(signature.updatedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => editSignature(signature)}
-                          className="p-2 rounded"
-                          style={{
-                            backgroundColor: "#D4EAF7",
-                            color: "#39A3DD",
-                          }}
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                        <button
-                          onClick={() => deleteSignature(signature._id)}
-                          className="p-2 rounded"
-                          style={{
-                            backgroundColor: "#FDD7E0",
-                            color: "#E85874",
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {signatures.length === 0 && (
-                  <p className="text-center py-8" style={{ color: "#8A9BA5" }}>
-                    No signatures saved yet
+                    Archery Technocrats®
+                  </h1>
+                  <p className="text-xs" style={{ color: "#8A9BA5" }}>
+                    Target Perfection
                   </p>
-                )}
+                </div>
               </div>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center">
+                  <img src={logo} alt="" className="rounded-full" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 p-3">
+            <div className="space-y-2">
+              <button
+                onClick={() => setCurrentPage("bulk-sender")}
+                className={`w-full flex items-center ${
+                  sidebarOpen ? "gap-3 px-4" : "justify-center"
+                } py-3 rounded-lg transition-all ${
+                  currentPage === "bulk-sender"
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white hover:bg-opacity-50"
+                }`}
+                style={{
+                  backgroundColor:
+                    currentPage === "bulk-sender" ? "#E85874" : "transparent",
+                  fontFamily: "'Oswald', sans-serif",
+                  fontWeight: 400,
+                  fontSize: "14px",
+                  letterSpacing: "0.5px",
+                }}
+                title={!sidebarOpen ? "Bulk Sender" : ""}
+              >
+                <Home size={20} />
+                {sidebarOpen && <span>BULK SENDER</span>}
+              </button>
+
+              <button
+                onClick={() => setCurrentPage("templates")}
+                className={`w-full flex items-center ${
+                  sidebarOpen ? "gap-3 px-4" : "justify-center"
+                } py-3 rounded-lg transition-all ${
+                  currentPage === "templates"
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white hover:bg-opacity-50"
+                }`}
+                style={{
+                  backgroundColor:
+                    currentPage === "templates" ? "#E85874" : "transparent",
+                  fontFamily: "'Oswald', sans-serif",
+                  fontWeight: 400,
+                  fontSize: "14px",
+                  letterSpacing: "0.5px",
+                }}
+                title={!sidebarOpen ? "Templates" : ""}
+              >
+                <Layers size={20} />
+                {sidebarOpen && <span>TEMPLATES</span>}
+              </button>
+
+              <button
+                onClick={() => setCurrentPage("signatures")}
+                className={`w-full flex items-center ${
+                  sidebarOpen ? "gap-3 px-4" : "justify-center"
+                } py-3 rounded-lg transition-all ${
+                  currentPage === "signatures"
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white hover:bg-opacity-50"
+                }`}
+                style={{
+                  backgroundColor:
+                    currentPage === "signatures" ? "#E85874" : "transparent",
+                  fontFamily: "'Oswald', sans-serif",
+                  fontWeight: 400,
+                  fontSize: "14px",
+                  letterSpacing: "0.5px",
+                }}
+                title={!sidebarOpen ? "Signatures" : ""}
+              >
+                <Edit3 size={20} />
+                {sidebarOpen && <span>SIGNATURES</span>}
+              </button>
+
+              <button
+                onClick={() => setCurrentPage("mail-accounts")}
+                className={`w-full flex items-center ${
+                  sidebarOpen ? "gap-3 px-4" : "justify-center"
+                } py-3 rounded-lg transition-all ${
+                  currentPage === "mail-accounts"
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white hover:bg-opacity-50"
+                }`}
+                style={{
+                  backgroundColor:
+                    currentPage === "mail-accounts" ? "#E85874" : "transparent",
+                  fontFamily: "'Oswald', sans-serif",
+                  fontWeight: 400,
+                  fontSize: "14px",
+                  letterSpacing: "0.5px",
+                }}
+                title={!sidebarOpen ? "Mail Accounts" : ""}
+              >
+                <Users size={20} />
+                {sidebarOpen && <span>MAIL ACCOUNTS</span>}
+              </button>
             </div>
+          </nav>
+
+          {/* Footer */}
+          <div
+            className="p-3 border-t"
+            style={{ borderColor: "rgba(255,255,255,0.1)" }}
+          >
+            {sidebarOpen && (
+              <div
+                className="mt-3 text-center text-xs"
+                style={{ color: "#8A9BA5" }}
+              >
+                Powered by{" "}
+                <span className="text-white font-semibold">
+                  Archery Technocrats®
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div
-      className="w-screen min-h-screen p-8 flex flex-col gap-8"
-      style={{
-        background: "linear-gradient(135deg, #F5F7F9 0%, #E8EDF1 100%)",
-      }}
-    >
-      <div className="flex gap-4">
-        <button
-          onClick={() => setCurrentPage("templates")}
-          className="px-6 py-3 rounded-lg font-semibold"
-          style={{ backgroundColor: "#8A9BA5", color: "white" }}
+      {/* ========== MAIN CONTENT ========== */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* ========== NAVBAR ========== */}
+        <div
+          className="h-16 flex items-center justify-between px-6"
+          style={{
+            backgroundColor: "#FFFFFF",
+            boxShadow: "0 2px 8px rgba(56, 71, 79, 0.1)",
+          }}
         >
-          <Layers size={18} className="inline mr-2" />
-          TEMPLATE MANAGER
-        </button>
-        <button
-          onClick={() => setCurrentPage("sender")}
-          className="px-6 py-3 rounded-lg font-semibold"
-          style={{ backgroundColor: "#39A3DD", color: "white" }}
-        >
-          <Send size={18} className="inline mr-2" />
-          BULK SENDER
-        </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-lg hover:bg-gray-100"
+              style={{ color: "#38474F" }}
+            >
+              <Menu size={24} />
+            </button>
+            <h2
+              className="text-2xl font-bold"
+              style={{
+                color: "#38474F",
+                fontFamily: "'Oswald', sans-serif",
+                letterSpacing: "0.5px",
+              }}
+            >
+              {currentPage === "bulk-sender" && "BULK EMAIL SENDER"}
+              {currentPage === "templates" && "TEMPLATE MANAGER"}
+              {currentPage === "signatures" && "SIGNATURE MANAGER"}
+              {currentPage === "mail-accounts" && "MAIL ACCOUNTS"}
+            </h2>
+          </div>
 
-        {/* ✅ SELECT CONTACT DROPDOWN - NOW IN BULK SENDER PAGE */}
-        <div className="relative">
-          <button
-            onClick={() => setOpenDropdown(!openDropdown)}
-            className="px-5 py-3 rounded-lg font-semibold flex items-center gap-2"
-            style={{ backgroundColor: "#475569", color: "white" }}
-          >
-            <Mail size={18} />
-            {selectedContact ? selectedContact.username : "Select Contact"}
-            <ChevronDown size={16} />
-          </button>
+          <div className="flex items-center gap-4">
+            {currentPage === "bulk-sender" && (
+              <div className="relative">
+                <button
+                  onClick={() => setOpenDropdown(!openDropdown)}
+                  className="px-4 py-2 rounded-lg flex items-center gap-2 font-semibold transition-all"
+                  style={{
+                    backgroundColor: "#E85874",
+                    color: "#FFFFFF",
+                    fontFamily: "'Oswald', sans-serif",
+                    fontSize: "14px",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  <Mail size={18} />
+                  {selectedContact ? selectedContact.username : "SELECT SENDER"}
+                  <ChevronDown size={16} />
+                </button>
 
-          {openDropdown && (
-            <div className="absolute mt-2 w-72 bg-white rounded-lg shadow-xl border-2 border-gray-200 z-50 max-h-96 overflow-y-auto">
-              {mailAccounts.length === 0 ? (
-                <div className="px-4 py-6 text-center text-gray-500">
-                  <p className="text-sm">No contacts available</p>
-                  <p className="text-xs mt-1">Add mail accounts first</p>
-                </div>
-              ) : (
-                mailAccounts.map((contact, index) => (
+                {openDropdown && (
                   <div
-                    key={contact._id || index}
-                    onClick={() => handleSelectContact(contact)}
-                    className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border z-50 max-h-96 overflow-y-auto"
+                    style={{ borderColor: "#E0E4E7" }}
                   >
-                    <p className="font-semibold text-slate-800 text-sm">
-                      {contact.username}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {contact.email}
-                    </p>
+                    {mailAccounts.length === 0 ? (
+                      <div
+                        className="px-4 py-6 text-center"
+                        style={{ color: "#8A9BA5" }}
+                      >
+                        <p className="text-sm">No contacts available</p>
+                        <p className="text-xs mt-1">Add mail accounts first</p>
+                      </div>
+                    ) : (
+                      mailAccounts.map((contact, index) => (
+                        <div
+                          key={contact._id || index}
+                          onClick={() => handleSelectContact(contact)}
+                          className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                          style={{ borderColor: "#E0E4E7" }}
+                        >
+                          <p
+                            className="font-semibold text-sm"
+                            style={{ color: "#38474F" }}
+                          >
+                            {contact.username}
+                          </p>
+                          <p
+                            className="text-xs mt-0.5"
+                            style={{ color: "#8A9BA5" }}
+                          >
+                            {contact.email}
+                          </p>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ========== PAGE CONTENT ========== */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* BULK SENDER PAGE */}
+          {currentPage === "bulk-sender" && (
+            <div className="max-w-7xl mx-auto">
+              <div className="grid grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div
+                  className="bg-white rounded-lg p-6"
+                  style={{ boxShadow: "0 2px 8px rgba(56, 71, 79, 0.1)" }}
+                >
+                  <h3
+                    className="text-xl font-bold mb-6"
+                    style={{
+                      color: "#38474F",
+                      fontFamily: "'Oswald', sans-serif",
+                    }}
+                  >
+                    EMAIL SETUP
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: "#38474F" }}
+                      >
+                        SELECT TEMPLATE *
+                      </label>
+                      <select
+                        value={selectedTemplate?._id || ""}
+                        onChange={(e) => {
+                          const template = templates.find(
+                            (t) => t._id === e.target.value
+                          );
+                          setSelectedTemplate(template || null);
+                        }}
+                        className="w-full border-2 px-4 py-3 rounded-lg"
+                        style={{
+                          borderColor: selectedTemplate ? "#39A3DD" : "#E0E4E7",
+                          backgroundColor: selectedTemplate
+                            ? "#D4EAF7"
+                            : "#FFFFFF",
+                        }}
+                      >
+                        <option value="">-- Choose a template --</option>
+                        {templates.map((template) => (
+                          <option key={template._id} value={template._id}>
+                            {template.name}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedTemplate && (
+                        <div
+                          className="mt-2 p-3 rounded-lg"
+                          style={{
+                            backgroundColor: "#D4EAF7",
+                            border: "1px solid #6BB9E5",
+                          }}
+                        >
+                          <p
+                            className="text-sm font-bold"
+                            style={{ color: "#2A7FAF" }}
+                          >
+                            Subject: {selectedTemplate.subject}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: "#38474F" }}
+                      >
+                        SELECT SIGNATURE (OPTIONAL)
+                      </label>
+                      <select
+                        value={selectedSignature?._id || ""}
+                        onChange={(e) => {
+                          const signature = signatures.find(
+                            (s) => s._id === e.target.value
+                          );
+                          setSelectedSignature(signature || null);
+                        }}
+                        className="w-full border-2 px-4 py-3 rounded-lg"
+                        style={{ borderColor: "#E0E4E7" }}
+                      >
+                        <option value="">-- No signature --</option>
+                        {signatures.map((signature) => (
+                          <option key={signature._id} value={signature._id}>
+                            {signature.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label
+                          className="block text-sm font-semibold mb-2"
+                          style={{ color: "#38474F" }}
+                        >
+                          FIRST NAME
+                        </label>
+                        <input
+                          type="text"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          className="w-full border-2 px-4 py-3 rounded-lg"
+                          placeholder="John"
+                          style={{ borderColor: "#E0E4E7" }}
+                        />
+                      </div>
+                      <div>
+                        <label
+                          className="block text-sm font-semibold mb-2"
+                          style={{ color: "#38474F" }}
+                        >
+                          LAST NAME
+                        </label>
+                        <input
+                          type="text"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          className="w-full border-2 px-4 py-3 rounded-lg"
+                          placeholder="Doe"
+                          style={{ borderColor: "#E0E4E7" }}
+                        />
+                      </div>
+                      <div>
+                        <label
+                          className="block text-sm font-semibold mb-2"
+                          style={{ color: "#38474F" }}
+                        >
+                          EMAIL
+                        </label>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full border-2 px-4 py-3 rounded-lg"
+                          placeholder="john@example.com"
+                          style={{ borderColor: "#E0E4E7" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: "#38474F" }}
+                      >
+                        IMAGES
+                      </label>
+                      <input
+                        type="file"
+                        ref={imageInputRef}
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                      <button
+                        onClick={() => imageInputRef.current?.click()}
+                        className="w-full py-3 flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-dashed transition-all"
+                        style={{
+                          borderColor: "#39A3DD",
+                          color: "#39A3DD",
+                          backgroundColor: "#F5FAFD",
+                        }}
+                      >
+                        <ImageIcon size={18} />
+                        ADD IMAGES
+                      </button>
+
+                      {emailImages.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {emailImages.map((image, index) => (
+                            <div
+                              key={index}
+                              className="p-3 rounded-lg"
+                              style={{
+                                backgroundColor: "#F5F7F9",
+                                border: "1px solid #E0E4E7",
+                              }}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span
+                                  className="text-sm"
+                                  style={{ color: "#38474F" }}
+                                >
+                                  {image.name}
+                                </span>
+                                <button
+                                  onClick={() => removeImage(index)}
+                                  className="p-1 rounded hover:bg-red-100"
+                                  style={{ color: "#E85874" }}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <span
+                                  className="text-xs"
+                                  style={{ color: "#8A9BA5" }}
+                                >
+                                  Width:
+                                </span>
+                                <input
+                                  type="range"
+                                  min="200"
+                                  max="600"
+                                  value={image.width}
+                                  onChange={(e) =>
+                                    updateImageWidth(
+                                      index,
+                                      Number(e.target.value)
+                                    )
+                                  }
+                                  className="flex-1"
+                                />
+                                <span
+                                  className="text-xs"
+                                  style={{ color: "#8A9BA5" }}
+                                >
+                                  {image.width}px
+                                </span>
+                              </div>
+                              <img
+                                src={image.dataUrl}
+                                alt={image.name}
+                                style={{
+                                  maxWidth: "100%",
+                                  borderRadius: "4px",
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: "#38474F" }}
+                      >
+                        ATTACHMENTS
+                      </label>
+                      <input
+                        type="file"
+                        ref={attachmentInputRef}
+                        multiple
+                        onChange={handleAttachmentUpload}
+                        className="hidden"
+                      />
+                      <button
+                        onClick={() => attachmentInputRef.current?.click()}
+                        className="w-full py-3 flex items-center justify-center gap-2 rounded-lg font-semibold border-2 border-dashed transition-all"
+                        style={{
+                          borderColor: "#39A3DD",
+                          color: "#39A3DD",
+                          backgroundColor: "#F5FAFD",
+                        }}
+                      >
+                        <Paperclip size={18} />
+                        ADD ATTACHMENTS
+                      </button>
+
+                      {attachments.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {attachments.map((attachment, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-3 rounded-lg"
+                              style={{
+                                backgroundColor: "#F5F7F9",
+                                border: "1px solid #E0E4E7",
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Paperclip
+                                  size={16}
+                                  style={{ color: "#39A3DD" }}
+                                />
+                                <span
+                                  className="text-sm"
+                                  style={{ color: "#38474F" }}
+                                >
+                                  {attachment.name}
+                                </span>
+                                <span
+                                  className="text-xs"
+                                  style={{ color: "#8A9BA5" }}
+                                >
+                                  ({attachment.size})
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => removeAttachment(index)}
+                                className="p-1 rounded hover:bg-red-100"
+                                style={{ color: "#E85874" }}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div
+                      className="pt-4 border-t"
+                      style={{ borderColor: "#E0E4E7" }}
+                    >
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        accept=".xlsx,.xls"
+                        onChange={handleExcelUpload}
+                        className="hidden"
+                      />
+
+                      {excelData.length > 0 && (
+                        <div
+                          className="mb-3 px-4 py-3 rounded-lg flex items-center gap-2"
+                          style={{
+                            backgroundColor: "#D4EAF7",
+                            color: "#2A7FAF",
+                            border: "1px solid #6BB9E5",
+                          }}
+                        >
+                          <div
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: "#39A3DD" }}
+                          ></div>
+                          {excelData.length} CONTACTS LOADED
+                        </div>
+                      )}
+
+                      {excelData.length > 0 && !isProcessing && (
+                        <button
+                          onClick={sendBulkEmails}
+                          className="w-full py-4 flex items-center justify-center gap-3 text-white rounded-lg font-semibold mb-3"
+                          style={{
+                            backgroundColor: "#E85874",
+                            boxShadow: "0 4px 12px rgba(232, 88, 116, 0.25)",
+                            fontFamily: "'Oswald', sans-serif",
+                          }}
+                        >
+                          <FileSpreadsheet size={20} />
+                          SEND BULK ({excelData.length})
+                        </button>
+                      )}
+
+                      {isProcessing && excelData.length > 0 && (
+                        <>
+                          <div
+                            className="mb-3 p-5 rounded-lg border-2"
+                            style={{
+                              backgroundColor: "rgba(212, 234, 247, 0.5)",
+                              borderColor: "#39A3DD",
+                            }}
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <span
+                                className="text-sm font-bold"
+                                style={{ color: "#2A7FAF" }}
+                              >
+                                PROCESSING
+                              </span>
+                              <span
+                                className="text-xs font-bold px-2 py-1 rounded"
+                                style={{
+                                  backgroundColor: "#39A3DD",
+                                  color: "white",
+                                }}
+                              >
+                                {currentIndex + 1} / {excelData.length}
+                              </span>
+                            </div>
+                            <div className="w-full bg-white rounded-full h-2.5 mb-3">
+                              <div
+                                className="h-2.5 rounded-full"
+                                style={{
+                                  width: `${
+                                    ((currentIndex + 1) / excelData.length) *
+                                    100
+                                  }%`,
+                                  backgroundColor: "#39A3DD",
+                                }}
+                              ></div>
+                            </div>
+                            <div className="flex gap-3 text-sm">
+                              <span style={{ color: "#4CAF50" }}>
+                                ✓ Sent: {successCount}
+                              </span>
+                              <span style={{ color: "#E85874" }}>
+                                ✗ Failed: {failCount}
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={cancelBulkSend}
+                            className="w-full py-4 flex items-center justify-center gap-3 text-white rounded-lg font-semibold mb-3"
+                            style={{
+                              backgroundColor: "#8A9BA5",
+                              fontFamily: "'Oswald', sans-serif",
+                            }}
+                          >
+                            <X size={20} />
+                            CANCEL
+                          </button>
+                        </>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="py-4 flex items-center justify-center gap-2 text-white rounded-lg font-semibold"
+                          style={{
+                            backgroundColor: "#39A3DD",
+                            fontFamily: "'Oswald', sans-serif",
+                          }}
+                        >
+                          <Upload size={20} />
+                          UPLOAD
+                        </button>
+
+                        <button
+                          onClick={sendEmail}
+                          disabled={isProcessing}
+                          className="py-4 flex items-center justify-center gap-2 text-white rounded-lg font-semibold"
+                          style={{
+                            backgroundColor: isProcessing
+                              ? "#8A9BA5"
+                              : "#39A3DD",
+                            cursor: isProcessing ? "not-allowed" : "pointer",
+                            fontFamily: "'Oswald', sans-serif",
+                          }}
+                        >
+                          <Send size={20} />
+                          SEND SINGLE
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Preview */}
+                <div
+                  className="bg-white rounded-lg p-6"
+                  style={{ boxShadow: "0 2px 8px rgba(56, 71, 79, 0.1)" }}
+                >
+                  <h3
+                    className="text-xl font-bold mb-6"
+                    style={{
+                      color: "#38474F",
+                      fontFamily: "'Oswald', sans-serif",
+                    }}
+                  >
+                    EMAIL PREVIEW
+                  </h3>
+                  <div
+                    style={{
+                      border: "1px solid #E0E4E7",
+                      borderRadius: "8px",
+                      padding: "20px",
+                      backgroundColor: "#FAFBFC",
+                      minHeight: "500px",
+                    }}
+                    dangerouslySetInnerHTML={{ __html: generatePreviewHTML() }}
+                  />
+                </div>
+              </div>
+
+              {/* Failed Emails Table */}
+              {showFailedTable && failedEmails.length > 0 && (
+                <div
+                  className="mt-6 bg-white rounded-lg p-6"
+                  style={{
+                    boxShadow: "0 2px 8px rgba(232, 88, 116, 0.15)",
+                    border: "2px solid #FDD7E0",
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="p-3 rounded-lg"
+                        style={{ backgroundColor: "#FDD7E0" }}
+                      >
+                        <AlertCircle size={24} style={{ color: "#E85874" }} />
+                      </div>
+                      <div>
+                        <h3
+                          className="text-2xl font-bold"
+                          style={{
+                            color: "#38474F",
+                            fontFamily: "'Oswald', sans-serif",
+                          }}
+                        >
+                          FAILED EMAILS
+                        </h3>
+                        <p style={{ color: "#8A9BA5", fontSize: "14px" }}>
+                          {failedEmails.length} email(s) failed
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={downloadFailedEmailsAsExcel}
+                      className="py-3 px-6 flex items-center gap-2 text-white rounded-lg font-semibold"
+                      style={{
+                        backgroundColor: "#E85874",
+                        fontFamily: "'Oswald', sans-serif",
+                      }}
+                    >
+                      <FileSpreadsheet size={18} />
+                      DOWNLOAD EXCEL
+                    </button>
+                  </div>
+
+                  <div
+                    className="overflow-x-auto rounded-lg"
+                    style={{ border: "1px solid #E0E4E7" }}
+                  >
+                    <table
+                      style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
+                      <thead>
+                        <tr
+                          style={{
+                            backgroundColor: "#F5F7F9",
+                            borderBottom: "2px solid #E0E4E7",
+                          }}
+                        >
+                          <th
+                            style={{
+                              padding: "16px",
+                              textAlign: "left",
+                              fontSize: "13px",
+                              color: "#38474F",
+                              fontFamily: "'Oswald', sans-serif",
+                            }}
+                          >
+                            EMAIL
+                          </th>
+                          <th
+                            style={{
+                              padding: "16px",
+                              textAlign: "left",
+                              fontSize: "13px",
+                              color: "#38474F",
+                              fontFamily: "'Oswald', sans-serif",
+                            }}
+                          >
+                            NAME
+                          </th>
+                          <th
+                            style={{
+                              padding: "16px",
+                              textAlign: "left",
+                              fontSize: "13px",
+                              color: "#38474F",
+                              fontFamily: "'Oswald', sans-serif",
+                            }}
+                          >
+                            REASON
+                          </th>
+                          <th
+                            style={{
+                              padding: "16px",
+                              textAlign: "left",
+                              fontSize: "13px",
+                              color: "#38474F",
+                              fontFamily: "'Oswald', sans-serif",
+                            }}
+                          >
+                            TIME
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {failedEmails.map((item, idx) => (
+                          <tr
+                            key={idx}
+                            style={{
+                              borderBottom: "1px solid #E0E4E7",
+                              backgroundColor:
+                                idx % 2 === 0 ? "#FFFFFF" : "#F9FAFB",
+                            }}
+                          >
+                            <td
+                              style={{
+                                padding: "14px 16px",
+                                fontSize: "13px",
+                                color: "#38474F",
+                              }}
+                            >
+                              {item.email}
+                            </td>
+                            <td
+                              style={{
+                                padding: "14px 16px",
+                                fontSize: "13px",
+                                color: "#38474F",
+                              }}
+                            >
+                              {item.name}
+                            </td>
+                            <td
+                              style={{ padding: "14px 16px", fontSize: "12px" }}
+                            >
+                              <span
+                                style={{
+                                  backgroundColor: "#E85874",
+                                  color: "white",
+                                  padding: "4px 10px",
+                                  borderRadius: "4px",
+                                }}
+                              >
+                                {item.reason}
+                              </span>
+                            </td>
+                            <td
+                              style={{
+                                padding: "14px 16px",
+                                fontSize: "12px",
+                                color: "#8A9BA5",
+                              }}
+                            >
+                              {item.timestamp}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               )}
             </div>
           )}
-        </div>
-      </div>
 
-      <div className="flex gap-8">
-        <div
-          className="bg-white rounded-xl shadow-lg p-8 flex-1 flex flex-col"
-          style={{
-            borderRadius: "12px",
-            boxShadow: "0 8px 32px rgba(56, 71, 79, 0.12)",
-            border: "1px solid rgba(56, 71, 79, 0.08)",
-            maxHeight: "90vh",
-            overflowY: "auto",
-            maxWidth: "50%",
-          }}
-        >
-          <div className="mb-6">
-            <h2
-              className="text-4xl font-bold mb-2 flex items-center gap-3"
-              style={{ color: "#38474F", letterSpacing: "0.5px" }}
-            >
+          {/* TEMPLATES PAGE */}
+          {currentPage === "templates" && (
+            <div className="max-w-7xl mx-auto">
               <div
-                className="p-3 rounded-lg"
-                style={{ backgroundColor: "#D4EAF7" }}
+                className="bg-white rounded-lg p-8 mb-6"
+                style={{ boxShadow: "0 2px 8px rgba(56, 71, 79, 0.1)" }}
               >
-                <Send size={32} style={{ color: "#39A3DD" }} />
-              </div>
-              EMAIL SENDER
-            </h2>
-            <p style={{ color: "#8A9BA5", lineHeight: "1.6" }}>
-              Select template and send professional bulk emails
-            </p>
-          </div>
-
-          <div className="flex-1 space-y-6 overflow-y-auto pr-4">
-            <div className="space-y-3">
-              <label
-                className="block text-sm font-semibold"
-                style={{ color: "#38474F" }}
-              >
-                SELECT EMAIL TEMPLATE *
-              </label>
-              <select
-                value={selectedTemplate?._id || ""}
-                onChange={(e) => {
-                  const template = templates.find(
-                    (t) => t._id === e.target.value
-                  );
-                  setSelectedTemplate(template || null);
-                }}
-                className="w-full border-2 px-4 py-3 rounded-lg text-sm"
-                style={{
-                  borderColor: selectedTemplate ? "#39A3DD" : "#E0E4E7",
-                  color: "#38474F",
-                  backgroundColor: selectedTemplate ? "#F5FAFD" : "white",
-                }}
-              >
-                <option value="">-- Choose a template --</option>
-                {templates.map((template) => (
-                  <option key={template._id} value={template._id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
-              {selectedTemplate && (
-                <div
-                  className="p-3 rounded-lg text-sm"
+                <h3
+                  className="text-2xl font-bold mb-6"
                   style={{
-                    backgroundColor: "#D4EAF7",
-                    border: "1px solid #6BB9E5",
+                    color: "#38474F",
+                    fontFamily: "'Oswald', sans-serif",
                   }}
                 >
-                  <p style={{ color: "#2A7FAF", fontWeight: "bold" }}>
-                    Subject: {selectedTemplate.subject}
-                  </p>
-                </div>
-              )}
-            </div>
+                  {editingTemplate ? "EDIT TEMPLATE" : "CREATE TEMPLATE"}
+                </h3>
 
-            <div className="space-y-3">
-              <label
-                className="block text-sm font-semibold"
-                style={{ color: "#38474F" }}
-              >
-                SELECT SIGNATURE (OPTIONAL)
-              </label>
-              <select
-                value={selectedSignature?._id || ""}
-                onChange={(e) => {
-                  const signature = signatures.find(
-                    (s) => s._id === e.target.value
-                  );
-                  setSelectedSignature(signature || null);
-                }}
-                className="w-full border-2 px-4 py-3 rounded-lg text-sm"
-                style={{ borderColor: "#E0E4E7", color: "#38474F" }}
-              >
-                <option value="">-- No signature --</option>
-                {signatures.map((signature) => (
-                  <option key={signature._id} value={signature._id}>
-                    {signature.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label
-                  className="block font-semibold text-sm"
-                  style={{ color: "#38474F" }}
-                >
-                  FIRST NAME
-                </label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full border-2 px-4 py-3 rounded-lg text-sm"
-                  placeholder="Enter first name"
-                  style={{ borderColor: "#E0E4E7", color: "#38474F" }}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label
-                  className="block font-semibold text-sm"
-                  style={{ color: "#38474F" }}
-                >
-                  LAST NAME
-                </label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="w-full border-2 px-4 py-3 rounded-lg text-sm"
-                  placeholder="Enter last name"
-                  style={{ borderColor: "#E0E4E7", color: "#38474F" }}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label
-                  className="block font-semibold text-sm"
-                  style={{ color: "#38474F" }}
-                >
-                  EMAIL
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full border-2 px-4 py-3 rounded-lg text-sm"
-                  placeholder="Enter email"
-                  style={{ borderColor: "#E0E4E7", color: "#38474F" }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <label
-                className="block text-sm font-semibold"
-                style={{ color: "#38474F" }}
-              >
-                IMAGES IN EMAIL
-              </label>
-              <input
-                type="file"
-                ref={imageInputRef}
-                multiple
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => imageInputRef.current?.click()}
-                className="w-full py-3 flex items-center justify-center gap-2 rounded-lg font-semibold text-sm border-2 border-dashed"
-                style={{
-                  borderColor: "#39A3DD",
-                  color: "#39A3DD",
-                  backgroundColor: "#F5FAFD",
-                }}
-              >
-                <ImageIcon size={18} />
-                ADD IMAGES TO EMAIL
-              </button>
-
-              {emailImages.length > 0 && (
-                <div className="space-y-2">
-                  {emailImages.map((image, index) => (
-                    <div
-                      key={index}
-                      className="p-3 rounded-lg space-y-2"
-                      style={{
-                        backgroundColor: "#F5F7F9",
-                        border: "1px solid #E0E4E7",
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm" style={{ color: "#38474F" }}>
-                          {image.name}
-                        </span>
-                        <button
-                          onClick={() => removeImage(index)}
-                          className="p-1 rounded hover:bg-red-100"
-                          style={{ color: "#E85874" }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs" style={{ color: "#8A9BA5" }}>
-                          Width:
-                        </span>
-                        <input
-                          type="range"
-                          min="200"
-                          max="600"
-                          value={image.width}
-                          onChange={(e) =>
-                            updateImageWidth(index, Number(e.target.value))
-                          }
-                          className="flex-1"
-                        />
-                        <span className="text-xs" style={{ color: "#8A9BA5" }}>
-                          {image.width}px
-                        </span>
-                      </div>
-                      <img
-                        src={image.dataUrl}
-                        alt={image.name}
-                        style={{ maxWidth: "100%", borderRadius: "4px" }}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: "#38474F" }}
+                      >
+                        TEMPLATE NAME
+                      </label>
+                      <input
+                        type="text"
+                        value={templateName}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                        className="w-full border-2 px-4 py-3 rounded-lg"
+                        placeholder="e.g., Welcome Email"
+                        style={{ borderColor: "#E0E4E7" }}
                       />
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            <div className="space-y-3">
-              <label
-                className="block text-sm font-semibold"
-                style={{ color: "#38474F" }}
-              >
-                FILE ATTACHMENTS
-              </label>
-              <input
-                type="file"
-                ref={attachmentInputRef}
-                multiple
-                onChange={handleAttachmentUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => attachmentInputRef.current?.click()}
-                className="w-full py-3 flex items-center justify-center gap-2 rounded-lg font-semibold text-sm border-2 border-dashed"
-                style={{
-                  borderColor: "#39A3DD",
-                  color: "#39A3DD",
-                  backgroundColor: "#F5FAFD",
-                }}
-              >
-                <Paperclip size={18} />
-                ADD FILE ATTACHMENTS
-              </button>
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: "#38474F" }}
+                      >
+                        EMAIL SUBJECT
+                      </label>
+                      <input
+                        type="text"
+                        value={templateSubject}
+                        onChange={(e) => setTemplateSubject(e.target.value)}
+                        className="w-full border-2 px-4 py-3 rounded-lg"
+                        placeholder="Enter email subject"
+                        style={{ borderColor: "#E0E4E7" }}
+                      />
+                    </div>
+                  </div>
 
-              {attachments.length > 0 && (
-                <div className="space-y-2">
-                  {attachments.map((attachment, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 rounded-lg"
+                  <div>
+                    <label
+                      className="block text-sm font-semibold mb-2"
+                      style={{ color: "#38474F" }}
+                    >
+                      EMAIL BODY
+                    </label>
+                    <RichTextEditor
+                      value={templateBody}
+                      onChange={setTemplateBody}
+                      placeholder="Enter email body..."
+                      height="400px"
+                      showVariables={true}
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={saveTemplate}
+                      className="flex-1 py-4 flex items-center justify-center gap-2 text-white rounded-lg font-semibold"
                       style={{
-                        backgroundColor: "#F5F7F9",
-                        border: "1px solid #E0E4E7",
+                        backgroundColor: "#E85874",
+                        fontFamily: "'Oswald', sans-serif",
                       }}
                     >
-                      <div className="flex items-center gap-2">
-                        <Paperclip size={16} style={{ color: "#39A3DD" }} />
-                        <span className="text-sm" style={{ color: "#38474F" }}>
-                          {attachment.name}
-                        </span>
-                        <span className="text-xs" style={{ color: "#8A9BA5" }}>
-                          ({attachment.size})
-                        </span>
-                      </div>
+                      <Save size={20} />
+                      {editingTemplate ? "UPDATE TEMPLATE" : "SAVE TEMPLATE"}
+                    </button>
+
+                    {editingTemplate && (
                       <button
-                        onClick={() => removeAttachment(index)}
-                        className="p-1 rounded hover:bg-red-100"
-                        style={{ color: "#E85874" }}
+                        onClick={() => {
+                          setEditingTemplate(null);
+                          setTemplateName("");
+                          setTemplateSubject("");
+                          setTemplateBody("");
+                        }}
+                        className="px-8 py-4 text-center rounded-lg font-semibold"
+                        style={{
+                          backgroundColor: "#F5F7F9",
+                          color: "#8A9BA5",
+                          fontFamily: "'Oswald', sans-serif",
+                        }}
                       >
-                        <Trash2 size={16} />
+                        CANCEL
                       </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="bg-white rounded-lg p-8"
+                style={{ boxShadow: "0 2px 8px rgba(56, 71, 79, 0.1)" }}
+              >
+                <h3
+                  className="text-2xl font-bold mb-6"
+                  style={{
+                    color: "#38474F",
+                    fontFamily: "'Oswald', sans-serif",
+                  }}
+                >
+                  SAVED TEMPLATES ({templates.length})
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  {templates.map((template) => (
+                    <div
+                      key={template._id}
+                      className="p-4 rounded-lg border"
+                      style={{
+                        backgroundColor: "#F5F7F9",
+                        borderColor: "#E0E4E7",
+                      }}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h4
+                            className="font-bold text-sm"
+                            style={{
+                              color: "#38474F",
+                              fontFamily: "'Oswald', sans-serif",
+                            }}
+                          >
+                            {template.name}
+                          </h4>
+                          <p
+                            className="text-xs mt-1"
+                            style={{ color: "#8A9BA5" }}
+                          >
+                            {template.subject}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => editTemplate(template)}
+                          className="flex-1 py-2 rounded transition-all flex items-center justify-center gap-1"
+                          style={{
+                            backgroundColor: "#D4EAF7",
+                            color: "#39A3DD",
+                            fontSize: "12px",
+                            fontFamily: "'Oswald', sans-serif",
+                          }}
+                        >
+                          <Edit3 size={14} />
+                          EDIT
+                        </button>
+                        <button
+                          onClick={() => deleteTemplate(template._id)}
+                          className="flex-1 py-2 rounded transition-all flex items-center justify-center gap-1"
+                          style={{
+                            backgroundColor: "#FDD7E0",
+                            color: "#E85874",
+                            fontSize: "12px",
+                            fontFamily: "'Oswald', sans-serif",
+                          }}
+                        >
+                          <Trash2 size={14} />
+                          DELETE
+                        </button>
+                      </div>
                     </div>
                   ))}
+                  {templates.length === 0 && (
+                    <div
+                      className="col-span-3 text-center py-12"
+                      style={{ color: "#8A9BA5" }}
+                    >
+                      <Layers size={48} className="mx-auto mb-3 opacity-30" />
+                      <p>No templates saved yet</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
+          )}
 
-            <div className="space-y-3">
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept=".xlsx,.xls"
-                onChange={handleExcelUpload}
-                className="hidden"
-              />
-
-              {excelData.length > 0 && (
-                <div
-                  className="text-sm px-4 py-3 rounded-lg flex items-center gap-2"
+          {/* SIGNATURES PAGE */}
+          {currentPage === "signatures" && (
+            <div className="max-w-7xl mx-auto">
+              <div
+                className="bg-white rounded-lg p-8 mb-6"
+                style={{ boxShadow: "0 2px 8px rgba(56, 71, 79, 0.1)" }}
+              >
+                <h3
+                  className="text-2xl font-bold mb-6"
                   style={{
-                    backgroundColor: "#D4EAF7",
-                    color: "#2A7FAF",
-                    border: "1px solid #6BB9E5",
+                    color: "#38474F",
+                    fontFamily: "'Oswald', sans-serif",
                   }}
                 >
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: "#39A3DD" }}
-                  ></div>
-                  {excelData.length} CONTACTS LOADED
+                  {editingSignature ? "EDIT SIGNATURE" : "CREATE SIGNATURE"}
+                </h3>
+
+                <div className="space-y-4">
+                  <div>
+                    <label
+                      className="block text-sm font-semibold mb-2"
+                      style={{ color: "#38474F" }}
+                    >
+                      SIGNATURE NAME
+                    </label>
+                    <input
+                      type="text"
+                      value={signatureName}
+                      onChange={(e) => setSignatureName(e.target.value)}
+                      className="w-full border-2 px-4 py-3 rounded-lg"
+                      placeholder="e.g., Professional Signature"
+                      style={{ borderColor: "#E0E4E7" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      className="block text-sm font-semibold mb-2"
+                      style={{ color: "#38474F" }}
+                    >
+                      SIGNATURE CONTENT
+                    </label>
+                    <RichTextEditor
+                      value={signatureContent}
+                      onChange={setSignatureContent}
+                      placeholder="Enter signature content..."
+                      height="400px"
+                      showVariables={true}
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={saveSignature}
+                      className="flex-1 py-4 flex items-center justify-center gap-2 text-white rounded-lg font-semibold"
+                      style={{
+                        backgroundColor: "#E85874",
+                        fontFamily: "'Oswald', sans-serif",
+                      }}
+                    >
+                      <Save size={20} />
+                      {editingSignature ? "UPDATE SIGNATURE" : "SAVE SIGNATURE"}
+                    </button>
+
+                    {editingSignature && (
+                      <button
+                        onClick={() => {
+                          setEditingSignature(null);
+                          setSignatureName("");
+                          setSignatureContent("");
+                        }}
+                        className="px-8 py-4 text-center rounded-lg font-semibold"
+                        style={{
+                          backgroundColor: "#F5F7F9",
+                          color: "#8A9BA5",
+                          fontFamily: "'Oswald', sans-serif",
+                        }}
+                      >
+                        CANCEL
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
 
-              {excelData.length > 0 && !isProcessing && (
-                <button
-                  onClick={sendBulkEmails}
-                  className="w-full py-3.5 flex items-center justify-center gap-3 text-white rounded-lg font-semibold text-sm"
+              <div
+                className="bg-white rounded-lg p-8"
+                style={{ boxShadow: "0 2px 8px rgba(56, 71, 79, 0.1)" }}
+              >
+                <h3
+                  className="text-2xl font-bold mb-6"
                   style={{
-                    backgroundColor: "#39A3DD",
-                    boxShadow: "0 4px 12px rgba(57, 163, 221, 0.25)",
+                    color: "#38474F",
+                    fontFamily: "'Oswald', sans-serif",
                   }}
                 >
-                  <FileSpreadsheet size={18} />
-                  SEND BULK ({excelData.length})
-                </button>
-              )}
+                  SAVED SIGNATURES ({signatures.length})
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  {signatures.map((signature) => (
+                    <div
+                      key={signature._id}
+                      className="p-4 rounded-lg border"
+                      style={{
+                        backgroundColor: "#F5F7F9",
+                        borderColor: "#E0E4E7",
+                      }}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h4
+                            className="font-bold text-sm"
+                            style={{
+                              color: "#38474F",
+                              fontFamily: "'Oswald', sans-serif",
+                            }}
+                          >
+                            {signature.name}
+                          </h4>
+                          <p
+                            className="text-xs mt-1"
+                            style={{ color: "#8A9BA5" }}
+                          >
+                            {new Date(signature.updatedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => editSignature(signature)}
+                          className="flex-1 py-2 rounded transition-all flex items-center justify-center gap-1"
+                          style={{
+                            backgroundColor: "#D4EAF7",
+                            color: "#39A3DD",
+                            fontSize: "12px",
+                            fontFamily: "'Oswald', sans-serif",
+                          }}
+                        >
+                          <Edit3 size={14} />
+                          EDIT
+                        </button>
+                        <button
+                          onClick={() => deleteSignature(signature._id)}
+                          className="flex-1 py-2 rounded transition-all flex items-center justify-center gap-1"
+                          style={{
+                            backgroundColor: "#FDD7E0",
+                            color: "#E85874",
+                            fontSize: "12px",
+                            fontFamily: "'Oswald', sans-serif",
+                          }}
+                        >
+                          <Trash2 size={14} />
+                          DELETE
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {signatures.length === 0 && (
+                    <div
+                      className="col-span-3 text-center py-12"
+                      style={{ color: "#8A9BA5" }}
+                    >
+                      <Edit3 size={48} className="mx-auto mb-3 opacity-30" />
+                      <p>No signatures saved yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
-              {isProcessing && excelData.length > 0 && (
-                <>
-                  <div
-                    className="p-5 rounded-xl border-2"
+          {/* MAIL ACCOUNTS PAGE */}
+          {currentPage === "mail-accounts" && (
+            <div className="max-w-7xl mx-auto">
+              <div
+                className="bg-white rounded-lg p-8"
+                style={{ boxShadow: "0 2px 8px rgba(56, 71, 79, 0.1)" }}
+              >
+                <div
+                  className="mb-8 p-6 rounded-lg"
+                  style={{ backgroundColor: "#D4EAF7" }}
+                >
+                  <h3
+                    className="text-xl font-bold mb-4"
                     style={{
-                      backgroundColor: "rgba(212, 234, 247, 0.5)",
-                      borderColor: "#39A3DD",
+                      color: "#2A7FAF",
+                      fontFamily: "'Oswald', sans-serif",
                     }}
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <span
-                        className="text-sm font-bold"
-                        style={{ color: "#2A7FAF" }}
+                    ADD NEW ACCOUNT
+                  </h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: "#38474F" }}
                       >
-                        PROCESSING
-                      </span>
-                      <span
-                        className="text-xs font-bold px-2 py-1 rounded"
-                        style={{ backgroundColor: "#39A3DD", color: "white" }}
+                        Username
+                      </label>
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full px-4 py-3 border-2 rounded-lg"
+                        placeholder="John Doe"
+                        style={{ borderColor: "#E0E4E7" }}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: "#38474F" }}
                       >
-                        {currentIndex + 1} / {excelData.length}
-                      </span>
+                        Email ID
+                      </label>
+                      <input
+                        type="email"
+                        value={accountEmail}
+                        onChange={(e) => setAccountEmail(e.target.value)}
+                        className="w-full px-4 py-3 border-2 rounded-lg"
+                        placeholder="john@example.com"
+                        style={{ borderColor: "#E0E4E7" }}
+                      />
                     </div>
-                    <div className="w-full bg-white rounded-full h-2.5 mb-3">
-                      <div
-                        className="h-2.5 rounded-full"
-                        style={{
-                          width: `${
-                            ((currentIndex + 1) / excelData.length) * 100
-                          }%`,
-                          backgroundColor: "#39A3DD",
-                        }}
-                      ></div>
-                    </div>
-                    <div className="flex gap-3 text-sm">
-                      <span style={{ color: "#4CAF50" }}>
-                        ✓ Sent: {successCount}
-                      </span>
-                      <span style={{ color: "#E85874" }}>
-                        ✗ Failed: {failCount}
-                      </span>
+
+                    <div>
+                      <label
+                        className="block text-sm font-semibold mb-2"
+                        style={{ color: "#38474F" }}
+                      >
+                        Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={accountPassword}
+                          onChange={(e) => setAccountPassword(e.target.value)}
+                          className="w-full px-4 py-3 border-2 rounded-lg pr-12"
+                          placeholder="Enter password"
+                          style={{ borderColor: "#E0E4E7" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-3"
+                          style={{ color: "#8A9BA5" }}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="w-5 h-5" />
+                          ) : (
+                            <Eye className="w-5 h-5" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   <button
-                    onClick={cancelBulkSend}
-                    className="w-full py-3.5 flex items-center justify-center gap-3 text-white rounded-lg font-semibold text-sm"
-                    style={{ backgroundColor: "#8A9BA5" }}
+                    onClick={handleAddAccount}
+                    className="w-full mt-4 py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2"
+                    style={{
+                      backgroundColor: "#E85874",
+                      fontFamily: "'Oswald', sans-serif",
+                    }}
                   >
-                    <X size={18} />
-                    CANCEL
+                    <Save size={20} />
+                    ADD ACCOUNT
                   </button>
-                </>
-              )}
+                </div>
+
+                <div>
+                  <h3
+                    className="text-xl font-bold mb-4"
+                    style={{
+                      color: "#38474F",
+                      fontFamily: "'Oswald', sans-serif",
+                    }}
+                  >
+                    SAVED ACCOUNTS ({mailAccounts.length})
+                  </h3>
+
+                  {mailAccounts.length === 0 ? (
+                    <p
+                      className="text-center py-8"
+                      style={{ color: "#8A9BA5" }}
+                    >
+                      No accounts saved yet
+                    </p>
+                  ) : (
+                    <div
+                      className="overflow-x-auto rounded-lg"
+                      style={{ border: "1px solid #E0E4E7" }}
+                    >
+                      <table
+                        style={{ width: "100%", borderCollapse: "collapse" }}
+                      >
+                        <thead style={{ backgroundColor: "#F5F7F9" }}>
+                          <tr>
+                            <th
+                              style={{
+                                padding: "16px",
+                                textAlign: "left",
+                                fontSize: "13px",
+                                color: "#38474F",
+                                fontFamily: "'Oswald', sans-serif",
+                              }}
+                            >
+                              USERNAME
+                            </th>
+                            <th
+                              style={{
+                                padding: "16px",
+                                textAlign: "left",
+                                fontSize: "13px",
+                                color: "#38474F",
+                                fontFamily: "'Oswald', sans-serif",
+                              }}
+                            >
+                              EMAIL ID
+                            </th>
+                            <th
+                              style={{
+                                padding: "16px",
+                                textAlign: "left",
+                                fontSize: "13px",
+                                color: "#38474F",
+                                fontFamily: "'Oswald', sans-serif",
+                              }}
+                            >
+                              PASSWORD
+                            </th>
+                            <th
+                              style={{
+                                padding: "16px",
+                                textAlign: "left",
+                                fontSize: "13px",
+                                color: "#38474F",
+                                fontFamily: "'Oswald', sans-serif",
+                              }}
+                            >
+                              ACTIONS
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {mailAccounts.map((account) => (
+                            <tr
+                              key={account._id}
+                              className="hover:bg-gray-50"
+                              style={{ borderBottom: "1px solid #E0E4E7" }}
+                            >
+                              <td
+                                style={{
+                                  padding: "16px",
+                                  fontSize: "14px",
+                                  color: "#38474F",
+                                }}
+                              >
+                                {account.username}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "16px",
+                                  fontSize: "14px",
+                                  color: "#38474F",
+                                }}
+                              >
+                                {account.email}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "16px",
+                                  fontSize: "14px",
+                                  color: "#38474F",
+                                  fontFamily: "monospace",
+                                }}
+                              >
+                                {"•".repeat(8)}
+                              </td>
+                              <td style={{ padding: "16px" }}>
+                                <button
+                                  onClick={() =>
+                                    handleDeleteAccount(account._id)
+                                  }
+                                  className="p-2 rounded transition-all hover:scale-110"
+                                  style={{
+                                    backgroundColor: "#FDD7E0",
+                                    color: "#E85874",
+                                  }}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div
-            className="grid grid-cols-2 gap-4 mt-6 pt-6"
-            style={{ borderTop: "2px solid #E0E4E7" }}
-          >
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="py-4 flex items-center justify-center gap-3 text-white rounded-lg font-semibold text-sm"
-              style={{
-                backgroundColor: "#39A3DD",
-                boxShadow: "0 4px 12px rgba(57, 163, 221, 0.25)",
-              }}
-            >
-              <Upload size={20} />
-              UPLOAD CONTACTS
-            </button>
-
-            <button
-              onClick={sendEmail}
-              disabled={isProcessing}
-              className="py-4 flex items-center justify-center gap-3 text-white rounded-lg font-semibold text-sm"
-              style={{
-                backgroundColor: isProcessing ? "#8A9BA5" : "#39A3DD",
-                cursor: isProcessing ? "not-allowed" : "pointer",
-              }}
-            >
-              <Send size={20} />
-              SEND SINGLE
-            </button>
-          </div>
-        </div>
-
-        <div
-          className="bg-white rounded-xl shadow-lg p-8 flex-1"
-          style={{
-            borderRadius: "12px",
-            boxShadow: "0 8px 32px rgba(56, 71, 79, 0.12)",
-            border: "1px solid rgba(56, 71, 79, 0.08)",
-            maxHeight: "90vh",
-            overflowY: "auto",
-            maxWidth: "50%",
-          }}
-        >
-          <h2 className="text-2xl font-bold mb-6" style={{ color: "#38474F" }}>
-            EMAIL PREVIEW
-          </h2>
-          <div
-            style={{
-              border: "1px solid #E0E4E7",
-              borderRadius: "8px",
-              padding: "20px",
-              backgroundColor: "#FAFBFC",
-            }}
-            dangerouslySetInnerHTML={{ __html: generatePreviewHTML() }}
-          />
+          )}
         </div>
       </div>
-
-      {showFailedTable && failedEmails.length > 0 && (
+      {/* Password Confirmation Modal */}
+      {showPasswordModal && (
         <div
-          className="bg-white rounded-xl shadow-lg p-8 w-full"
-          style={{
-            boxShadow: "0 8px 32px rgba(232, 88, 116, 0.15)",
-            border: "2px solid #FDD7E0",
-          }}
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
         >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
+          <div
+            className="bg-white rounded-lg p-8 max-w-md w-full mx-4"
+            style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}
+          >
+            <div className="flex items-center gap-3 mb-4">
               <div
-                className="p-3 rounded-lg"
+                className="w-12 h-12 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: "#FDD7E0" }}
               >
                 <AlertCircle size={24} style={{ color: "#E85874" }} />
               </div>
-              <div>
-                <h3 className="text-2xl font-bold" style={{ color: "#38474F" }}>
-                  FAILED EMAILS
-                </h3>
-                <p style={{ color: "#8A9BA5", fontSize: "14px" }}>
-                  {failedEmails.length} email(s) failed
-                </p>
+              <h3
+                className="text-2xl font-bold"
+                style={{
+                  color: "#38474F",
+                  fontFamily: "'Oswald', sans-serif",
+                }}
+              >
+                CONFIRM DELETION
+              </h3>
+            </div>
+
+            <p className="mb-6" style={{ color: "#8A9BA5", fontSize: "14px" }}>
+              Please enter the account password to confirm deletion. This action
+              cannot be undone.
+            </p>
+
+            <div className="mb-6">
+              <label
+                className="block text-sm font-semibold mb-2"
+                style={{ color: "#38474F" }}
+              >
+                Account Password *
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      confirmDeleteAccount();
+                    }
+                  }}
+                  className="w-full border-2 px-4 py-3 rounded-lg pr-12"
+                  placeholder="Enter account password"
+                  style={{ borderColor: "#E0E4E7" }}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3"
+                  style={{ color: "#8A9BA5" }}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
               </div>
             </div>
-            <button
-              onClick={downloadFailedEmailsAsExcel}
-              className="py-3 px-6 flex items-center gap-2 text-white rounded-lg font-semibold text-sm"
-              style={{ backgroundColor: "#39A3DD" }}
-            >
-              <FileSpreadsheet size={18} />
-              DOWNLOAD EXCEL
-            </button>
-          </div>
 
-          <div
-            className="overflow-x-auto"
-            style={{ borderRadius: "8px", border: "1px solid #E0E4E7" }}
-          >
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr
-                  style={{
-                    backgroundColor: "#F5F7F9",
-                    borderBottom: "2px solid #E0E4E7",
-                  }}
-                >
-                  <th
-                    style={{
-                      padding: "16px",
-                      textAlign: "left",
-                      fontSize: "13px",
-                      color: "#38474F",
-                    }}
-                  >
-                    EMAIL
-                  </th>
-                  <th
-                    style={{
-                      padding: "16px",
-                      textAlign: "left",
-                      fontSize: "13px",
-                      color: "#38474F",
-                    }}
-                  >
-                    NAME
-                  </th>
-                  <th
-                    style={{
-                      padding: "16px",
-                      textAlign: "left",
-                      fontSize: "13px",
-                      color: "#38474F",
-                    }}
-                  >
-                    REASON
-                  </th>
-                  <th
-                    style={{
-                      padding: "16px",
-                      textAlign: "left",
-                      fontSize: "13px",
-                      color: "#38474F",
-                    }}
-                  >
-                    TIME
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {failedEmails.map((item, idx) => (
-                  <tr
-                    key={idx}
-                    style={{
-                      borderBottom: "1px solid #E0E4E7",
-                      backgroundColor: idx % 2 === 0 ? "#FFFFFF" : "#F9FAFB",
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "14px 16px",
-                        fontSize: "13px",
-                        color: "#38474F",
-                      }}
-                    >
-                      {item.email}
-                    </td>
-                    <td
-                      style={{
-                        padding: "14px 16px",
-                        fontSize: "13px",
-                        color: "#38474F",
-                      }}
-                    >
-                      {item.name}
-                    </td>
-                    <td style={{ padding: "14px 16px", fontSize: "12px" }}>
-                      <span
-                        style={{
-                          backgroundColor: "#E85874",
-                          color: "white",
-                          padding: "4px 10px",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        {item.reason}
-                      </span>
-                    </td>
-                    <td
-                      style={{
-                        padding: "14px 16px",
-                        fontSize: "12px",
-                        color: "#8A9BA5",
-                      }}
-                    >
-                      {item.timestamp}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="flex gap-3">
+              <button
+                onClick={confirmDeleteAccount}
+                disabled={!deletePassword}
+                className="flex-1 py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2 transition-all"
+                style={{
+                  backgroundColor: deletePassword ? "#E85874" : "#E0E4E7",
+                  cursor: deletePassword ? "pointer" : "not-allowed",
+                  fontFamily: "'Oswald', sans-serif",
+                }}
+              >
+                <Trash2 size={18} />
+                DELETE ACCOUNT
+              </button>
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setDeletePassword("");
+                  setDeleteAccountId(null);
+                }}
+                className="flex-1 py-3 rounded-lg font-semibold transition-all"
+                style={{
+                  backgroundColor: "#F5F7F9",
+                  color: "#8A9BA5",
+                  fontFamily: "'Oswald', sans-serif",
+                }}
+              >
+                CANCEL
+              </button>
+            </div>
           </div>
         </div>
       )}
